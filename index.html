@@ -744,6 +744,18 @@
     <h2>Ayarlar</h2>
     <p class="sub">Bilgiler yalnızca bu cihazda, tarayıcının local storage'ında saklanır.</p>
 
+    <div class="field chain-field">
+      <label for="pasteExtractInput" style="margin-bottom:8px; display:block;">Yapıştır ve otomatik bul</label>
+      <div class="hint" style="margin-top:-4px; margin-bottom:8px;">
+        build.nvidia.com'daki kod örneğini ya da API key + model listesi içeren
+        herhangi bir metni buraya olduğu gibi yapıştır — key'i ve
+        "sağlayıcı/model-adı" formatındaki model ID'lerini kendisi bulur.
+      </div>
+      <textarea id="pasteExtractInput" placeholder="Buraya yapıştır…" style="min-height:80px;"></textarea>
+      <button class="btn" id="extractBtn" style="width:100%; margin-top:8px;">Ayıkla</button>
+      <div id="extractResults" style="display:none; margin-top:10px;"></div>
+    </div>
+
     <div class="field">
       <label for="apiKeyInput">NVIDIA API Key</label>
       <div class="key-toggle">
@@ -1646,6 +1658,8 @@
     $("maxTokInput").value = state.maxTokens;
     $("chainEnabledInput").checked = state.chainEnabled;
     $("modelInputWarn").style.display = "none";
+    $("extractResults").style.display = "none";
+    $("pasteExtractInput").value = "";
     renderModelList();
     settingsOverlay.classList.remove("hidden");
   }
@@ -1790,6 +1804,107 @@
     localStorage.setItem(LS_CURMODEL, state.currentModel);
     updateTopTitle();
   }
+
+  // ---------------- Paste & auto-extract ----------------
+  function extractApiInfo(text){
+    const keyMatch = text.match(/nvapi-[A-Za-z0-9_\-]{20,}/);
+    const apiKey = keyMatch ? keyMatch[0] : null;
+
+    const blocklist = new Set([
+      "application/json","text/event-stream","text/plain","multipart/form-data",
+      "image/png","image/jpeg","image/webp","image/gif","audio/mpeg","video/mp4",
+      "user/assistant","system/user","true/false"
+    ]);
+
+    const rawTokens = text.split(/[^a-zA-Z0-9_.\-\/]+/).filter(Boolean);
+    const seen = new Set();
+    const models = [];
+    for(const tok of rawTokens){
+      const parts = tok.split("/");
+      if(parts.length !== 2) continue;
+      const [a, b] = parts;
+      if(a.length < 2 || b.length < 2) continue;
+      if(/^v\d+$/i.test(a) || a.toLowerCase() === "api") continue;
+      if(blocklist.has(tok.toLowerCase())) continue;
+      if(!/[0-9\-]/.test(a) && !/[0-9\-]/.test(b)) continue; // must look slug-like
+      if(!/^[a-zA-Z0-9][a-zA-Z0-9_.\-]*$/.test(a) || !/^[a-zA-Z0-9][a-zA-Z0-9_.\-]*$/.test(b)) continue;
+      if(seen.has(tok)) continue;
+      seen.add(tok);
+      models.push(tok);
+      if(models.length >= 25) break;
+    }
+    return { apiKey, models };
+  }
+
+  function renderExtractResults(apiKey, models){
+    const box = $("extractResults");
+    box.innerHTML = "";
+    box.style.display = "block";
+
+    const keyLine = document.createElement("div");
+    keyLine.className = "hint";
+    if(apiKey){
+      keyLine.style.color = "var(--teal-bright)";
+      keyLine.textContent = `API key bulundu (…${apiKey.slice(-6)})`;
+    } else {
+      keyLine.textContent = "Metinde API key bulunamadı (nvapi- ile başlamalı) — üstteki alana elle girebilirsin.";
+    }
+    box.appendChild(keyLine);
+
+    if(models.length === 0){
+      const none = document.createElement("div");
+      none.className = "hint";
+      none.textContent = "Metinde model ID'sine benzer bir şey bulunamadı.";
+      box.appendChild(none);
+      return;
+    }
+
+    const listWrap = document.createElement("div");
+    listWrap.className = "model-list";
+    listWrap.style.marginTop = "8px";
+    models.forEach((m)=>{
+      const row = document.createElement("label");
+      row.className = "model-row";
+      row.style.cursor = "pointer";
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = true;
+      cb.dataset.model = m;
+      cb.style.marginRight = "6px";
+      const span = document.createElement("span");
+      span.textContent = m;
+      row.appendChild(cb);
+      row.appendChild(span);
+      listWrap.appendChild(row);
+    });
+    box.appendChild(listWrap);
+
+    const applyBtn = document.createElement("button");
+    applyBtn.className = "btn primary";
+    applyBtn.style.marginTop = "10px";
+    applyBtn.style.width = "100%";
+    applyBtn.textContent = `Seçilenleri ekle`;
+    applyBtn.addEventListener("click", ()=>{
+      const checked = [...listWrap.querySelectorAll("input[type=checkbox]:checked")].map(cb=>cb.dataset.model);
+      for(const m of checked){
+        if(!state.models.includes(m)) state.models.push(m);
+      }
+      if(checked.length && !state.currentModel) state.currentModel = checked[0];
+      if(apiKey) $("apiKeyInput").value = apiKey;
+      persistModels();
+      renderModelList();
+      box.style.display = "none";
+      $("pasteExtractInput").value = "";
+    });
+    box.appendChild(applyBtn);
+  }
+
+  $("extractBtn").addEventListener("click", ()=>{
+    const text = $("pasteExtractInput").value;
+    if(!text.trim()) return;
+    const { apiKey, models } = extractApiInfo(text);
+    renderExtractResults(apiKey, models);
+  });
 
   function addModelFromInput(){
     const v = $("modelInput").value.trim();
