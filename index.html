@@ -633,9 +633,8 @@
     padding: 10px 12px;
     border-radius: var(--radius);
     font-size: 13px;
-    margin: 10px 18px 0 18px;
-    max-width: 780px;
-    margin-left:auto; margin-right:auto;
+    margin: 0 0 8px 0;
+    line-height: 1.5;
   }
   .error-banner.hidden{ display:none; }
 
@@ -715,11 +714,11 @@
 
     <div id="scrollArea">
       <div id="messages"></div>
-      <div class="error-banner hidden" id="errorBanner"></div>
     </div>
 
     <div id="inputDock">
       <div id="inputInner">
+        <div class="error-banner hidden" id="errorBanner"></div>
         <div id="attachedFiles"></div>
         <div id="inputBar">
           <button class="icon-btn" id="attachBtn" aria-label="Dosya ekle">
@@ -769,6 +768,7 @@
         <button class="btn" id="addModelBtn" style="flex:0 0 auto; padding:9px 12px;">Ekle</button>
       </div>
       <div class="hint">Tam model ID'sini modelin build.nvidia.com sayfasındaki API sekmesinden kopyala.</div>
+      <div class="hint" id="modelInputWarn" style="display:none; color:#E39490;"></div>
       <div class="model-list" id="modelList"></div>
     </div>
 
@@ -1218,60 +1218,108 @@
   });
 
   // ---------------- Streaming helper (single call to the API) ----------------
+  const IDLE_TIMEOUT_MS = 45000;
+
   async function streamChatCompletion(model, messages, onDelta, signal){
-    const body = {
-      model: model,
-      messages: messages,
-      stream: true,
-      temperature: parseFloat(state.temperature) || 0.7,
-      max_tokens: parseInt(state.maxTokens) || 2048,
-    };
-
-    const resp = await fetch(state.apiUrl || DEFAULT_API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer " + state.apiKey,
-        "Accept": "text/event-stream",
-      },
-      body: JSON.stringify(body),
-      signal: signal,
-    });
-
-    if(!resp.ok){
-      let errText = "";
-      try{ errText = await resp.text(); }catch(e){}
-      throw new Error(`HTTP ${resp.status} (${model}) — ${errText.slice(0,300)}`);
+    const controller = new AbortController();
+    const onExternalAbort = ()=> controller.abort();
+    if(signal){
+      if(signal.aborted) controller.abort();
+      else signal.addEventListener("abort", onExternalAbort);
     }
 
-    const reader = resp.body.getReader();
-    const decoder = new TextDecoder("utf-8");
-    let buffer = "";
-    let full = "";
+    let idleTimer = null;
+    let timedOut = false;
+    function resetIdleTimer(){
+      if(idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(()=>{
+        timedOut = true;
+        controller.abort();
+      }, IDLE_TIMEOUT_MS);
+    }
+    resetIdleTimer();
 
-    while(true){
-      const { done, value } = await reader.read();
-      if(done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop();
-      for(const line of lines){
-        const trimmed = line.trim();
-        if(!trimmed.startsWith("data:")) continue;
-        const payload = trimmed.slice(5).trim();
-        if(payload === "[DONE]") continue;
-        try{
-          const json = JSON.parse(payload);
-          const delta = json.choices && json.choices[0] && json.choices[0].delta;
-          const piece = delta && (delta.content || delta.reasoning_content);
-          if(piece){
-            full += piece;
-            onDelta(full);
-          }
-        }catch(e){ /* ignore partial JSON */ }
+    try{
+      const body = {
+        model: model,
+        messages: messages,
+        stream: true,
+        temperature: parseFloat(state.temperature) || 0.7,
+        max_tokens: parseInt(state.maxTokens) || 2048,
+      };
+
+      let resp;
+      try{
+        resp = await fetch(state.apiUrl || DEFAULT_API_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + state.apiKey,
+            "Accept": "text/event-stream",
+          },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
+      }catch(fetchErr){
+        if(timedOut){
+          const e = new Error(`"${model}" isteği ${IDLE_TIMEOUT_MS/1000} saniyede yanıt vermedi — bağlantı zaman aşımına uğradı. Model adının doğru olduğundan ve API adresinin (Ayarlar) çalıştığından emin ol.`);
+          e.name = "TimeoutError";
+          throw e;
+        }
+        throw fetchErr;
       }
+      resetIdleTimer();
+
+      if(!resp.ok){
+        let errText = "";
+        try{ errText = await resp.text(); }catch(e){}
+        throw new Error(`HTTP ${resp.status} (${model}) — ${errText.slice(0,300)}`);
+      }
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let buffer = "";
+      let full = "";
+
+      while(true){
+        let readResult;
+        try{
+          readResult = await reader.read();
+        }catch(readErr){
+          if(timedOut){
+            const e = new Error(`"${model}" modelinden ${IDLE_TIMEOUT_MS/1000} saniyedir veri gelmiyor — bağlantı zaman aşımına uğradı.`);
+            e.name = "TimeoutError";
+            throw e;
+          }
+          throw readErr;
+        }
+        resetIdleTimer();
+        const { done, value } = readResult;
+        if(done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop();
+        for(const line of lines){
+          const trimmed = line.trim();
+          if(!trimmed.startsWith("data:")) continue;
+          const payload = trimmed.slice(5).trim();
+          if(payload === "[DONE]") continue;
+          try{
+            const json = JSON.parse(payload);
+            const delta = json.choices && json.choices[0] && json.choices[0].delta;
+            const piece = delta && (delta.content || delta.reasoning_content);
+            if(piece){
+              full += piece;
+              onDelta(full);
+            }
+          }catch(e){ /* ignore partial JSON */ }
+        }
+      }
+      return full;
+    } finally {
+      clearTimeout(idleTimer);
+      if(signal) signal.removeEventListener("abort", onExternalAbort);
     }
-    return full;
   }
 
   function friendlyNetworkError(err){
@@ -1597,6 +1645,7 @@
     $("tempInput").value = state.temperature;
     $("maxTokInput").value = state.maxTokens;
     $("chainEnabledInput").checked = state.chainEnabled;
+    $("modelInputWarn").style.display = "none";
     renderModelList();
     settingsOverlay.classList.remove("hidden");
   }
@@ -1745,6 +1794,13 @@
   function addModelFromInput(){
     const v = $("modelInput").value.trim();
     if(!v) return false;
+    const warnEl = $("modelInputWarn");
+    if(!v.includes("/")){
+      warnEl.textContent = `"${v}" NVIDIA'nın beklediği "sağlayıcı/model-adı" formatına benzemiyor (örn. deepseek-ai/deepseek-v3.2). Tam ID'yi build.nvidia.com'daki modelin API sekmesinden kopyalaman önerilir — yine de eklendi, istersen düzeltebilirsin.`;
+      warnEl.style.display = "block";
+    } else {
+      warnEl.style.display = "none";
+    }
     if(!state.models.includes(v)) state.models.push(v);
     state.currentModel = v;
     $("modelInput").value = "";
