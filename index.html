@@ -627,6 +627,12 @@
     </div>
 
     <div class="field">
+      <label for="apiUrlInput">API adresi</label>
+      <input type="text" id="apiUrlInput" placeholder="https://integrate.api.nvidia.com/v1/chat/completions">
+      <div class="hint">"Load failed" / CORS hatası alırsan buraya kendi proxy adresini gir. README'deki proxy kurulum adımına bak.</div>
+    </div>
+
+    <div class="field">
       <label for="modelInput">Model ID</label>
       <div class="row">
         <input type="text" id="modelInput" placeholder="örn. meta/llama-3.1-70b-instruct">
@@ -689,7 +695,8 @@
   const LS_TEMP = "nvterm_temp";
   const LS_MAXTOK = "nvterm_maxtok";
 
-  const API_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
+  const DEFAULT_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
+  const LS_APIURL = "nvterm_apiurl";
 
   function loadJSON(key, fallback){
     try{
@@ -701,6 +708,7 @@
 
   let state = {
     apiKey: localStorage.getItem(LS_KEY) || "",
+    apiUrl: localStorage.getItem(LS_APIURL) || DEFAULT_API_URL,
     models: loadJSON(LS_MODELS, []),
     currentModel: localStorage.getItem(LS_CURMODEL) || "",
     sysPrompt: localStorage.getItem(LS_SYSPROMPT) || "",
@@ -1055,7 +1063,7 @@
         max_tokens: parseInt(state.maxTokens) || 2048,
       };
 
-      const resp = await fetch(API_URL, {
+      const resp = await fetch(state.apiUrl || DEFAULT_API_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1114,8 +1122,8 @@
       } else {
         console.error(err);
         let msg = err.message || String(err);
-        if(msg.includes("Failed to fetch") || msg.includes("NetworkError")){
-          msg = "İstek başarısız oldu. Bu genelde CORS kısıtlaması veya internet bağlantısı sorunudur — README'deki proxy notuna bak.";
+        if(msg.includes("Failed to fetch") || msg.includes("NetworkError") || msg.includes("Load failed")){
+          msg = "İstek tarayıcı tarafından engellendi — büyük ihtimalle NVIDIA API'si doğrudan tarayıcı isteklerine (CORS) izin vermiyor. Ayarlar → API adresi kısmına bir proxy URL'i girmen gerekiyor; README'deki 'CORS hakkında önemli not' bölümünde 2 dakikalık ücretsiz kurulum var.";
         }
         showError(msg);
         if(!asstMsg.content){
@@ -1239,6 +1247,7 @@
   const settingsOverlay = $("settingsOverlay");
   function openSettings(){
     $("apiKeyInput").value = state.apiKey;
+    $("apiUrlInput").value = state.apiUrl || DEFAULT_API_URL;
     $("sysPromptInput").value = state.sysPrompt;
     $("tempInput").value = state.temperature;
     $("maxTokInput").value = state.maxTokens;
@@ -1270,6 +1279,7 @@
       useBtn.style.color = m === state.currentModel ? "var(--amber)" : "var(--text-dim)";
       useBtn.addEventListener("click", ()=>{
         state.currentModel = m;
+        persistModels();
         renderModelList();
       });
       const delBtn = document.createElement("button");
@@ -1277,6 +1287,7 @@
       delBtn.addEventListener("click", ()=>{
         state.models = state.models.filter(x=>x!==m);
         if(state.currentModel === m) state.currentModel = state.models[0] || "";
+        persistModels();
         renderModelList();
       });
       row.appendChild(useBtn);
@@ -1285,31 +1296,56 @@
     }
   }
 
-  $("addModelBtn").addEventListener("click", ()=>{
+  function persistModels(){
+    saveJSON(LS_MODELS, state.models);
+    localStorage.setItem(LS_CURMODEL, state.currentModel);
+    updateTopTitle();
+  }
+
+  function addModelFromInput(){
     const v = $("modelInput").value.trim();
-    if(!v) return;
+    if(!v) return false;
     if(!state.models.includes(v)) state.models.push(v);
     state.currentModel = v;
     $("modelInput").value = "";
+    persistModels();
     renderModelList();
-  });
+    return true;
+  }
+
+  $("addModelBtn").addEventListener("click", addModelFromInput);
   $("modelInput").addEventListener("keydown", (e)=>{
-    if(e.key === "Enter"){ e.preventDefault(); $("addModelBtn").click(); }
+    if(e.key === "Enter"){ e.preventDefault(); addModelFromInput(); }
   });
 
   $("saveSettingsBtn").addEventListener("click", ()=>{
+    // if the user typed a model ID but forgot to hit "Ekle", add it now
+    if($("modelInput").value.trim()){
+      addModelFromInput();
+    }
+
     state.apiKey = $("apiKeyInput").value.trim();
+    state.apiUrl = $("apiUrlInput").value.trim() || DEFAULT_API_URL;
     state.sysPrompt = $("sysPromptInput").value;
     state.temperature = $("tempInput").value.trim() || "0.7";
     state.maxTokens = $("maxTokInput").value.trim() || "2048";
 
     localStorage.setItem(LS_KEY, state.apiKey);
-    saveJSON(LS_MODELS, state.models);
-    localStorage.setItem(LS_CURMODEL, state.currentModel);
+    localStorage.setItem(LS_APIURL, state.apiUrl);
+    persistModels();
     localStorage.setItem(LS_SYSPROMPT, state.sysPrompt);
     localStorage.setItem(LS_TEMP, state.temperature);
     localStorage.setItem(LS_MAXTOK, state.maxTokens);
 
+    if(!state.apiKey){
+      showError("API key boş görünüyor — girip tekrar kaydet.");
+      return;
+    }
+    if(!state.currentModel){
+      showError("Model ID eklenmedi — kutuya yazıp Ekle'ye bas, sonra Kaydet.");
+      return;
+    }
+    hideError();
     updateTopTitle();
     closeSettings();
     renderMessages();

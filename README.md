@@ -68,46 +68,29 @@ Birden fazla model ekleyip Ayarlar'dan aralarında geçiş yapabilirsin.
 
 ## CORS hakkında önemli not
 
-NVIDIA'nın `integrate.api.nvidia.com` endpoint'i tarayıcıdan doğrudan isteğe
-izin veriyorsa uygulama sorunsuz çalışır. Eğer istek "Failed to fetch" hatası
-verirse (uygulama bunu ekranda gösterecek) bu genelde CORS kısıtlamasıdır —
-tarayıcı, sunucunun izin vermediği bir siteler-arası isteği engeller.
+NVIDIA'nın `integrate.api.nvidia.com` endpoint'i tarayıcıdan gelen doğrudan
+isteklere izin vermiyor — bu yüzden uygulamada **"Load failed"** (Safari) ya
+da "Failed to fetch" (Chrome) hatası alırsın. Bu bir bug değil, NVIDIA
+API'sinin tarayıcı-içi isteklere kapalı olmasından kaynaklanıyor; sunucudan
+(backend) gelen isteklere izin veriyor. Çözüm: aradan çok küçük, ücretsiz bir
+proxy geçirmek.
 
-Bu durumda çözüm: aradan çok küçük, ücretsiz bir proxy geçirmek. Cloudflare
-Workers üzerinde (ücretsiz katman yeterli) şöyle bir proxy yeterli olur:
+**Kurulum (3 dakika):**
 
-```js
-// Cloudflare Worker — worker.js
-export default {
-  async fetch(request) {
-    if (request.method === "OPTIONS") {
-      return new Response(null, {
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Headers": "*",
-          "Access-Control-Allow-Methods": "POST, OPTIONS",
-        },
-      });
-    }
-    const upstream = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": request.headers.get("Authorization"),
-      },
-      body: request.body,
-    });
-    const resp = new Response(upstream.body, upstream);
-    resp.headers.set("Access-Control-Allow-Origin", "*");
-    return resp;
-  },
-};
-```
+1. Bu repo'daki `cloudflare-worker-proxy.js` dosyasını aç, içindeki
+   adım adım talimatı takip et (özetle: workers.cloudflare.com'da ücretsiz
+   hesap aç, "Create Worker" de, dosyanın içeriğini yapıştır, Deploy'a bas).
+2. Sana verilen adres şuna benzer olacak:
+   `https://nvidia-proxy.kullanici-adin.workers.dev`
+3. Terminal uygulamasında **Ayarlar → API adresi** kutusuna şunu yapıştır
+   (sonuna `/v1/chat/completions` eklemeyi unutma):
+   `https://nvidia-proxy.kullanici-adin.workers.dev/v1/chat/completions`
+4. Kaydet — istekler artık bu proxy üzerinden gidiyor, key hâlâ sadece senin
+   cihazından geçiyor, proxy hiçbir şey saklamıyor/loglamıyor.
 
-Deploy ettikten sonra `index.html` içindeki `API_URL` sabitini kendi Worker
-adresinle değiştirmen yeterli (`const API_URL = "..."` satırı, dosyanın
-başlarında). Key hâlâ sadece senin cihazından geçer, Worker sadece isteği
-iletir ve loglamaz.
+Ayarlar'daki bu alanı boş bırakırsan uygulama doğrudan NVIDIA'nın adresini
+dener; proxy'ye ihtiyaç olmadığı ortaya çıkarsa (NVIDIA ileride CORS açarsa)
+alanı tekrar boşaltman yeterli.
 
 ## Güvenlik notu
 
