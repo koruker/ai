@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>Terminal</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Terminal">
+<meta name="theme-color" content="#15171B">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/base16/tomorrow-night.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.1/marked.min.js"></script>
+
+<style>
+  :root{
+    --bg: #15171B;
+    --panel: #1C1F24;
+    --panel-2: #22262C;
+    --border: #2B2F36;
+    --text: #E9E6DF;
+    --text-dim: #8C9098;
+    --text-faint: #5B5F66;
+    --amber: #E8A33D;
+    --amber-dim: #7A5A26;
+    --teal: #2D6A5C;
+    --teal-bright: #49947F;
+    --danger: #C0524B;
+    --radius: 6px;
+    --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    --sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  @font-face{
+    font-family: 'IBM Plex Sans';
+    src: local('IBM Plex Sans');
+  }
+
+  *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body{ height: 100%; }
+  body{
+    margin:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.55;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  #app{
+    display:flex;
+    height: 100vh;
+    height: 100dvh;
+    width: 100vw;
+  }
+
+  /* ---------- Sidebar ---------- */
+  #sidebar{
+    width: 264px;
+    flex-shrink:0;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    display:flex;
+    flex-direction:column;
+    transition: margin-left .22s ease;
+  }
+  #sidebar.collapsed{ margin-left: -264px; }
+
+  .sidebar-head{
+    padding: 16px 14px 10px 14px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-family: var(--mono);
+    font-weight:600;
+    font-size: 14px;
+    color: var(--amber);
+    letter-spacing: .2px;
+  }
+  .brand svg{ flex-shrink:0; }
+
+  .new-chat-btn{
+    margin: 12px 14px 8px 14px;
+    padding: 9px 12px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: var(--radius);
+    font-family: var(--sans);
+    font-size: 13.5px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    transition: border-color .15s, background .15s;
+  }
+  .new-chat-btn:hover{ border-color: var(--amber-dim); background: rgba(232,163,61,0.06); }
+
+  #convList{
+    flex:1;
+    overflow-y:auto;
+    padding: 4px 8px 8px 8px;
+  }
+  .conv-item{
+    padding: 9px 10px;
+    border-radius: var(--radius);
+    cursor:pointer;
+    font-size: 13.5px;
+    color: var(--text-dim);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:6px;
+    margin-bottom: 2px;
+    border: 1px solid transparent;
+  }
+  .conv-item:hover{ background: var(--panel-2); color: var(--text); }
+  .conv-item.active{ background: var(--panel-2); color: var(--text); border-color: var(--border); }
+  .conv-item .title{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
+  .conv-del{
+    opacity:0;
+    background:none; border:none; color: var(--text-faint);
+    cursor:pointer; padding: 2px 4px; font-size: 14px; flex-shrink:0;
+    border-radius: 4px;
+  }
+  .conv-item:hover .conv-del{ opacity: 1; }
+  .conv-del:hover{ color: var(--danger); }
+
+  .sidebar-foot{
+    padding: 10px 14px 14px 14px;
+    border-top: 1px solid var(--border);
+  }
+  .foot-btn{
+    width:100%;
+    padding: 8px 10px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: var(--radius);
+    font-family: var(--sans);
+    font-size: 13px;
+    cursor:pointer;
+    text-align:left;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .foot-btn:hover{ color: var(--text); border-color: var(--amber-dim); }
+
+  /* ---------- Main column ---------- */
+  #main{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    min-width:0;
+    position: relative;
+  }
+
+  #topbar{
+    height: 52px;
+    flex-shrink:0;
+    display:flex;
+    align-items:center;
+    gap: 10px;
+    padding: 0 14px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+  #menuToggle{
+    background:none; border:none; color: var(--text-dim); cursor:pointer;
+    padding: 6px; border-radius: 4px; display:flex;
+  }
+  #menuToggle:hover{ color: var(--text); background: var(--panel-2); }
+  .top-title{
+    font-size: 13.5px;
+    color: var(--text-dim);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    flex:1;
+  }
+  .model-chip{
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--teal-bright);
+    background: rgba(45,106,92,0.14);
+    border: 1px solid rgba(45,106,92,0.35);
+    padding: 3px 8px;
+    border-radius: 100px;
+    white-space:nowrap;
+    max-width: 40vw;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  #settingsBtn{
+    background:none; border:none; color: var(--text-dim); cursor:pointer;
+    padding: 6px; border-radius: 4px; display:flex; flex-shrink:0;
+  }
+  #settingsBtn:hover{ color: var(--amber); background: var(--panel-2); }
+
+  /* ---------- Messages ---------- */
+  #scrollArea{
+    flex:1;
+    overflow-y:auto;
+    padding: 10px 0 12px 0;
+  }
+  #messages{
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 0 18px;
+    display:flex;
+    flex-direction:column;
+    gap: 4px;
+    min-height:100%;
+  }
+
+  .empty-state{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    color: var(--text-faint);
+    padding: 40px 20px;
+    gap: 10px;
+  }
+  .empty-state svg{ opacity:.5; margin-bottom: 6px; }
+  .empty-state .es-title{ font-family: var(--mono); color: var(--text-dim); font-size: 15px; }
+  .empty-state .es-sub{ font-size: 13px; max-width: 340px; }
+
+  .msg-row{
+    display:flex;
+    gap: 12px;
+    padding: 14px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+  }
+  .msg-row:last-child{ border-bottom:none; }
+  .avatar{
+    width: 26px; height: 26px; flex-shrink:0;
+    border-radius: 5px;
+    display:flex; align-items:center; justify-content:center;
+    font-family: var(--mono); font-size: 11px; font-weight:600;
+    margin-top: 2px;
+  }
+  .msg-row.user .avatar{ background: rgba(45,106,92,0.18); color: var(--teal-bright); border: 1px solid rgba(45,106,92,0.4); }
+  .msg-row.assistant .avatar{ background: rgba(232,163,61,0.12); color: var(--amber); border: 1px solid rgba(232,163,61,0.32); }
+
+  .msg-body{ flex:1; min-width:0; padding-top: 3px; }
+  .msg-content{ color: var(--text); word-wrap: break-word; }
+  .msg-content p{ margin: 0 0 10px 0; }
+  .msg-content p:last-child{ margin-bottom:0; }
+  .msg-content ul, .msg-content ol{ margin: 6px 0 12px 0; padding-left: 22px; }
+  .msg-content li{ margin-bottom: 4px; }
+  .msg-content a{ color: var(--teal-bright); }
+  .msg-content h1, .msg-content h2, .msg-content h3{ font-size: 1.05em; margin: 16px 0 8px 0; color: var(--text); }
+  .msg-content blockquote{
+    margin: 8px 0; padding: 2px 12px; border-left: 2px solid var(--border); color: var(--text-dim);
+  }
+  .msg-content code:not(pre code){
+    background: var(--panel-2);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 0.87em;
+    color: var(--amber);
+  }
+  .msg-content table{ border-collapse: collapse; margin: 10px 0; font-size: .92em; }
+  .msg-content th, .msg-content td{ border: 1px solid var(--border); padding: 5px 10px; }
+
+  .code-block{
+    position:relative;
+    margin: 10px 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow:hidden;
+    background: #0F1013;
+  }
+  .code-block-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 6px 10px;
+    background: var(--panel-2);
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-faint);
+  }
+  .copy-btn{
+    background:none; border: 1px solid var(--border); color: var(--text-dim);
+    font-family: var(--sans); font-size: 11px;
+    padding: 3px 8px; border-radius: 4px; cursor:pointer;
+  }
+  .copy-btn:hover{ color: var(--amber); border-color: var(--amber-dim); }
+  .code-block pre{ margin:0; padding: 12px 14px; overflow-x:auto; }
+  .code-block code{ font-family: var(--mono); font-size: 13px; line-height: 1.5; }
+
+  .file-chip{
+    display:inline-flex; align-items:center; gap:6px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    padding: 4px 9px 4px 7px;
+    border-radius: 100px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--text-dim);
+    margin: 2px 6px 2px 0;
+  }
+
+  .cursor-blink::after{
+    content:'▌';
+    color: var(--amber);
+    animation: blink 1s step-start infinite;
+    margin-left: 1px;
+  }
+  @keyframes blink{ 50%{ opacity:0; } }
+
+  /* ---------- Input dock ---------- */
+  #inputDock{
+    flex-shrink:0;
+    padding: 10px 18px calc(14px + env(safe-area-inset-bottom)) 18px;
+    border-top: 1px solid var(--border);
+    background: var(--bg);
+  }
+  #inputInner{
+    max-width: 780px;
+    margin: 0 auto;
+  }
+  #attachedFiles{
+    display:flex; flex-wrap:wrap; margin-bottom: 6px;
+  }
+  #attachedFiles:empty{ display:none; }
+  .attach-chip{
+    display:inline-flex; align-items:center; gap:6px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    padding: 4px 6px 4px 10px;
+    border-radius: 100px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--text-dim);
+    margin: 3px 6px 3px 0;
+  }
+  .attach-chip button{
+    background:none; border:none; color: var(--text-faint); cursor:pointer;
+    font-size: 13px; padding: 1px 3px; line-height:1;
+  }
+  .attach-chip button:hover{ color: var(--danger); }
+
+  #inputBar{
+    display:flex;
+    align-items:flex-end;
+    gap: 8px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 7px 7px 7px 12px;
+    transition: border-color .15s;
+  }
+  #inputBar:focus-within{ border-color: var(--amber-dim); }
+
+  #textInput{
+    flex:1;
+    background:none;
+    border:none;
+    outline:none;
+    resize:none;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.5;
+    max-height: 200px;
+    padding: 6px 0;
+  }
+  #textInput::placeholder{ color: var(--text-faint); }
+
+  .icon-btn{
+    background:none;
+    border:none;
+    color: var(--text-dim);
+    cursor:pointer;
+    width: 34px; height: 34px;
+    border-radius: 8px;
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+  }
+  .icon-btn:hover{ background: var(--panel-2); color: var(--text); }
+
+  #sendBtn{
+    background: var(--amber);
+    color: #1A1300;
+    border:none;
+    width: 34px; height: 34px;
+    border-radius: 8px;
+    cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+    transition: opacity .15s;
+  }
+  #sendBtn:disabled{ opacity:.35; cursor:default; }
+  #sendBtn.stop{ background: var(--danger); color: #fff; }
+
+  .hint-row{
+    text-align:center;
+    font-size: 11px;
+    color: var(--text-faint);
+    margin-top: 8px;
+    font-family: var(--mono);
+  }
+
+  /* ---------- Modal ---------- */
+  .modal-overlay{
+    position:fixed; inset:0; background: rgba(10,11,13,0.6);
+    display:flex; align-items:center; justify-content:center;
+    z-index: 100;
+    padding: 20px;
+    backdrop-filter: blur(2px);
+  }
+  .modal-overlay.hidden{ display:none; }
+  .modal{
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    width: 100%;
+    max-width: 440px;
+    max-height: 86vh;
+    overflow-y:auto;
+    padding: 20px;
+  }
+  .modal h2{
+    font-family: var(--mono);
+    font-size: 15px;
+    color: var(--amber);
+    margin: 0 0 4px 0;
+    font-weight:600;
+  }
+  .modal .sub{ font-size: 12.5px; color: var(--text-faint); margin: 0 0 18px 0; }
+  .field{ margin-bottom: 14px; }
+  .field label{
+    display:block;
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+    font-family: var(--mono);
+  }
+  .field input[type=text], .field input[type=password], .field textarea, .field select{
+    width:100%;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 9px 10px;
+    border-radius: var(--radius);
+    font-family: var(--sans);
+    font-size: 13.5px;
+    outline:none;
+  }
+  .field input:focus, .field textarea:focus, .field select:focus{ border-color: var(--amber-dim); }
+  .field textarea{ resize:vertical; min-height: 56px; font-family: var(--mono); font-size: 12.5px; }
+  .field .row{ display:flex; gap: 8px; }
+  .field .row > *{ flex:1; }
+  .field .hint{ font-size: 11px; color: var(--text-faint); margin-top: 5px; }
+  .field .hint a{ color: var(--teal-bright); }
+
+  .key-toggle{ display:flex; align-items:center; gap:8px; }
+  .key-toggle input{ flex:1; }
+
+  .model-list{ display:flex; flex-direction:column; gap:6px; margin-top: 6px; }
+  .model-row{
+    display:flex; align-items:center; gap:8px;
+    background: var(--panel-2); border:1px solid var(--border); border-radius: var(--radius);
+    padding: 7px 9px;
+  }
+  .model-row span{ flex:1; font-family: var(--mono); font-size:12px; color: var(--text-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .model-row.active span{ color: var(--amber); }
+  .model-row button{ background:none; border:none; color: var(--text-faint); cursor:pointer; font-size:13px; }
+  .model-row button:hover{ color: var(--danger); }
+  .model-row.active{ border-color: var(--amber-dim); }
+
+  .modal-actions{
+    display:flex; gap: 8px; margin-top: 18px;
+  }
+  .btn{
+    padding: 9px 14px;
+    border-radius: var(--radius);
+    font-family: var(--sans);
+    font-size: 13.5px;
+    cursor:pointer;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    flex:1;
+    text-align:center;
+  }
+  .btn.primary{ background: var(--amber); color: #1A1300; border-color: var(--amber); font-weight:600; }
+  .btn:hover{ filter: brightness(1.1); }
+
+  .error-banner{
+    background: rgba(192,82,75,0.12);
+    border: 1px solid rgba(192,82,75,0.4);
+    color: #E39490;
+    padding: 10px 12px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    margin: 10px 18px 0 18px;
+    max-width: 780px;
+    margin-left:auto; margin-right:auto;
+  }
+  .error-banner.hidden{ display:none; }
+
+  #dropOverlay{
+    position:fixed; inset:0; background: rgba(232,163,61,0.08);
+    border: 2px dashed var(--amber);
+    display:none;
+    align-items:center; justify-content:center;
+    z-index: 90; pointer-events:none;
+    font-family: var(--mono); color: var(--amber); font-size: 16px;
+  }
+  #dropOverlay.active{ display:flex; }
+
+  /* scrollbars */
+  ::-webkit-scrollbar{ width: 9px; height: 9px; }
+  ::-webkit-scrollbar-track{ background: transparent; }
+  ::-webkit-scrollbar-thumb{ background: #33373E; border-radius: 5px; }
+  ::-webkit-scrollbar-thumb:hover{ background: #40454D; }
+
+  @media (max-width: 760px){
+    #sidebar{ position:fixed; top:0; bottom:0; left:0; z-index: 80; margin-left:-264px; box-shadow: 0 0 0 2000px rgba(0,0,0,0); }
+    #sidebar.open{ margin-left:0; box-shadow: 10px 0 30px rgba(0,0,0,0.4); }
+    #sidebarScrim{ display:none; position:fixed; inset:0; background: rgba(0,0,0,0.45); z-index:70; }
+    #sidebarScrim.active{ display:block; }
+    .model-chip{ display:none; }
+    #messages{ padding: 0 14px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <aside id="sidebar" class="collapsed">
+    <div class="sidebar-head">
+      <div class="brand">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 3L7 8L2 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="9" y1="13" x2="13" y2="13" stroke="#2D6A5C" stroke-width="2" stroke-linecap="round"/></svg>
+        TERMINAL
+      </div>
+    </div>
+    <button class="new-chat-btn" id="newChatBtn">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1V13M1 7H13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      Yeni sohbet
+    </button>
+    <div id="convList"></div>
+    <div class="sidebar-foot">
+      <button class="foot-btn" id="settingsBtnSide">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="2.2" stroke="currentColor" stroke-width="1.3"/><path d="M7 1.5V2.7M7 11.3V12.5M12.5 7H11.3M2.7 7H1.5M10.7 3.3L9.9 4.1M4.1 9.9L3.3 10.7M10.7 10.7L9.9 9.9M4.1 4.1L3.3 3.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Ayarlar
+      </button>
+    </div>
+  </aside>
+
+  <div id="sidebarScrim"></div>
+
+  <main id="main">
+    <div id="topbar">
+      <button id="menuToggle" aria-label="Menü">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 5H16M2 9H16M2 13H16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
+      <div class="top-title" id="topTitle">Yeni sohbet</div>
+      <div class="model-chip" id="modelChip">model seçilmedi</div>
+      <button id="settingsBtn" aria-label="Ayarlar">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="2.6" stroke="currentColor" stroke-width="1.4"/><path d="M9 1.8V3.4M9 14.6V16.2M16.2 9H14.6M3.4 9H1.8M13.7 4.3L12.6 5.4M5.4 12.6L4.3 13.7M13.7 13.7L12.6 12.6M5.4 5.4L4.3 4.3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+
+    <div id="scrollArea">
+      <div id="messages"></div>
+      <div class="error-banner hidden" id="errorBanner"></div>
+    </div>
+
+    <div id="inputDock">
+      <div id="inputInner">
+        <div id="attachedFiles"></div>
+        <div id="inputBar">
+          <button class="icon-btn" id="attachBtn" aria-label="Dosya ekle">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M11.5 3.5L4.8 10.2C3.7 11.3 3.7 13 4.8 14.1C5.9 15.2 7.6 15.2 8.7 14.1L14.8 8C15.6 7.2 15.6 5.9 14.8 5.1C14 4.3 12.7 4.3 11.9 5.1L6.3 10.7C6 11 6 11.4 6.3 11.7C6.6 12 7 12 7.3 11.7L12.2 6.8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <textarea id="textInput" placeholder="Bir mesaj yaz…" rows="1"></textarea>
+          <button id="sendBtn" aria-label="Gönder">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 13V3M8 3L3.5 7.5M8 3L12.5 7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+        <div class="hint-row" id="hintRow">Enter ile gönder · Shift+Enter yeni satır</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<input type="file" id="fileInput" multiple style="display:none">
+<div id="dropOverlay">Dosyayı buraya bırak</div>
+
+<!-- Settings modal -->
+<div class="modal-overlay hidden" id="settingsOverlay">
+  <div class="modal">
+    <h2>Ayarlar</h2>
+    <p class="sub">Bilgiler yalnızca bu cihazda, tarayıcının local storage'ında saklanır.</p>
+
+    <div class="field">
+      <label for="apiKeyInput">NVIDIA API Key</label>
+      <div class="key-toggle">
+        <input type="password" id="apiKeyInput" placeholder="nvapi-xxxxxxxxxxxxxxxx">
+        <button class="icon-btn" id="toggleKeyVis" type="button" aria-label="Göster">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C1 8 3.5 3 8 3C12.5 3 15 8 15 8C15 8 12.5 13 8 13C3.5 13 1 8 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.3"/></svg>
+        </button>
+      </div>
+      <div class="hint">build.nvidia.com üzerinden alınan key. <a href="https://build.nvidia.com" target="_blank" rel="noopener">build.nvidia.com →</a></div>
+    </div>
+
+    <div class="field">
+      <label for="modelInput">Model ID</label>
+      <div class="row">
+        <input type="text" id="modelInput" placeholder="örn. meta/llama-3.1-70b-instruct">
+        <button class="btn" id="addModelBtn" style="flex:0 0 auto; padding:9px 12px;">Ekle</button>
+      </div>
+      <div class="hint">Tam model ID'sini modelin build.nvidia.com sayfasındaki API sekmesinden kopyala.</div>
+      <div class="model-list" id="modelList"></div>
+    </div>
+
+    <div class="field">
+      <label for="sysPromptInput">Sistem talimatı (opsiyonel)</label>
+      <textarea id="sysPromptInput" placeholder="Örn: Kısa ve teknik cevaplar ver."></textarea>
+    </div>
+
+    <div class="field">
+      <div class="row">
+        <div>
+          <label for="tempInput">Temperature</label>
+          <input type="text" id="tempInput" placeholder="0.7">
+        </div>
+        <div>
+          <label for="maxTokInput">Max tokens</label>
+          <input type="text" id="maxTokInput" placeholder="2048">
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn" id="closeSettingsBtn">Kapat</button>
+      <button class="btn primary" id="saveSettingsBtn">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<!-- Rename modal -->
+<div class="modal-overlay hidden" id="renameOverlay">
+  <div class="modal" style="max-width:360px;">
+    <h2>Sohbeti yeniden adlandır</h2>
+    <div class="field" style="margin-top:14px;">
+      <input type="text" id="renameInput">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="renameCancelBtn">Vazgeç</button>
+      <button class="btn primary" id="renameSaveBtn">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------------- Storage helpers ----------------
+  const LS_KEY = "nvterm_apikey";
+  const LS_MODELS = "nvterm_models";
+  const LS_CURMODEL = "nvterm_current_model";
+  const LS_CONVS = "nvterm_conversations";
+  const LS_ACTIVE = "nvterm_active";
+  const LS_SYSPROMPT = "nvterm_sysprompt";
+  const LS_TEMP = "nvterm_temp";
+  const LS_MAXTOK = "nvterm_maxtok";
+
+  const API_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
+
+  function loadJSON(key, fallback){
+    try{
+      const v = localStorage.getItem(key);
+      return v ? JSON.parse(v) : fallback;
+    }catch(e){ return fallback; }
+  }
+  function saveJSON(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
+
+  let state = {
+    apiKey: localStorage.getItem(LS_KEY) || "",
+    models: loadJSON(LS_MODELS, []),
+    currentModel: localStorage.getItem(LS_CURMODEL) || "",
+    sysPrompt: localStorage.getItem(LS_SYSPROMPT) || "",
+    temperature: localStorage.getItem(LS_TEMP) || "0.7",
+    maxTokens: localStorage.getItem(LS_MAXTOK) || "2048",
+    conversations: loadJSON(LS_CONVS, {}),   // id -> {id, title, messages:[], updated}
+    activeId: localStorage.getItem(LS_ACTIVE) || null,
+  };
+
+  let isStreaming = false;
+  let abortController = null;
+  let pendingFiles = []; // {name, kind:'text'|'image', content}
+
+  // ---------------- DOM refs ----------------
+  const $ = (id) => document.getElementById(id);
+  const sidebar = $("sidebar");
+  const sidebarScrim = $("sidebarScrim");
+  const convList = $("convList");
+  const scrollArea = $("scrollArea");
+  const messagesEl = $("messages");
+  const topTitle = $("topTitle");
+  const modelChip = $("modelChip");
+  const textInput = $("textInput");
+  const sendBtn = $("sendBtn");
+  const attachBtn = $("attachBtn");
+  const fileInput = $("fileInput");
+  const attachedFilesEl = $("attachedFiles");
+  const errorBanner = $("errorBanner");
+  const dropOverlay = $("dropOverlay");
+
+  // ---------------- Init conversation ----------------
+  function ensureConversation(){
+    if(!state.activeId || !state.conversations[state.activeId]){
+      const id = "c_" + Date.now();
+      state.conversations[id] = { id, title: "Yeni sohbet", messages: [], updated: Date.now() };
+      state.activeId = id;
+      persistConvs();
+    }
+  }
+  ensureConversation();
+
+  function persistConvs(){
+    saveJSON(LS_CONVS, state.conversations);
+    localStorage.setItem(LS_ACTIVE, state.activeId);
+  }
+
+  function currentConv(){ return state.conversations[state.activeId]; }
+
+  // ---------------- Sidebar rendering ----------------
+  function renderSidebar(){
+    convList.innerHTML = "";
+    const convs = Object.values(state.conversations).sort((a,b)=> b.updated - a.updated);
+    for(const c of convs){
+      const row = document.createElement("div");
+      row.className = "conv-item" + (c.id === state.activeId ? " active" : "");
+      row.innerHTML = `<span class="title"></span><button class="conv-del" title="Sil">✕</button>`;
+      row.querySelector(".title").textContent = c.title || "Yeni sohbet";
+      row.addEventListener("click", (e)=>{
+        if(e.target.closest(".conv-del")) return;
+        state.activeId = c.id;
+        persistConvs();
+        renderSidebar();
+        renderMessages();
+        closeSidebarMobile();
+      });
+      row.addEventListener("dblclick", (e)=>{
+        if(e.target.closest(".conv-del")) return;
+        openRename(c.id);
+      });
+      row.querySelector(".conv-del").addEventListener("click", (e)=>{
+        e.stopPropagation();
+        deleteConversation(c.id);
+      });
+      convList.appendChild(row);
+    }
+  }
+
+  function deleteConversation(id){
+    delete state.conversations[id];
+    if(state.activeId === id){
+      const rest = Object.keys(state.conversations);
+      state.activeId = rest.length ? rest[0] : null;
+      ensureConversation();
+    }
+    persistConvs();
+    renderSidebar();
+    renderMessages();
+  }
+
+  function newConversation(){
+    const id = "c_" + Date.now();
+    state.conversations[id] = { id, title: "Yeni sohbet", messages: [], updated: Date.now() };
+    state.activeId = id;
+    persistConvs();
+    renderSidebar();
+    renderMessages();
+    closeSidebarMobile();
+    textInput.focus();
+  }
+
+  // rename modal
+  let renameTargetId = null;
+  function openRename(id){
+    renameTargetId = id;
+    $("renameInput").value = state.conversations[id].title || "";
+    $("renameOverlay").classList.remove("hidden");
+    setTimeout(()=> $("renameInput").focus(), 30);
+  }
+  $("renameCancelBtn").addEventListener("click", ()=> $("renameOverlay").classList.add("hidden"));
+  $("renameSaveBtn").addEventListener("click", ()=>{
+    if(renameTargetId && state.conversations[renameTargetId]){
+      state.conversations[renameTargetId].title = $("renameInput").value.trim() || "Yeni sohbet";
+      persistConvs();
+      renderSidebar();
+      updateTopTitle();
+    }
+    $("renameOverlay").classList.add("hidden");
+  });
+
+  function updateTopTitle(){
+    const c = currentConv();
+    topTitle.textContent = c ? (c.title || "Yeni sohbet") : "Yeni sohbet";
+    modelChip.textContent = state.currentModel || "model seçilmedi";
+  }
+
+  // ---------------- Markdown / code rendering ----------------
+  marked.setOptions({
+    breaks: true,
+    gfm: true,
+  });
+
+  function renderMarkdownInto(container, text){
+    const html = marked.parse(text || "");
+    container.innerHTML = html;
+    // wrap <pre><code> blocks with header + copy button, apply highlight.js
+    container.querySelectorAll("pre").forEach((pre)=>{
+      const codeEl = pre.querySelector("code");
+      if(!codeEl) return;
+      let lang = "";
+      const cls = codeEl.className || "";
+      const m = cls.match(/language-(\w+)/);
+      if(m) lang = m[1];
+      try{ hljs.highlightElement(codeEl); }catch(e){}
+
+      const wrap = document.createElement("div");
+      wrap.className = "code-block";
+      const head = document.createElement("div");
+      head.className = "code-block-head";
+      head.innerHTML = `<span>${lang || "kod"}</span>`;
+      const copyBtn = document.createElement("button");
+      copyBtn.className = "copy-btn";
+      copyBtn.textContent = "Kopyala";
+      copyBtn.addEventListener("click", ()=>{
+        navigator.clipboard.writeText(codeEl.textContent).then(()=>{
+          copyBtn.textContent = "Kopyalandı";
+          setTimeout(()=> copyBtn.textContent = "Kopyala", 1400);
+        });
+      });
+      head.appendChild(copyBtn);
+
+      pre.parentNode.insertBefore(wrap, pre);
+      wrap.appendChild(head);
+      wrap.appendChild(pre);
+    });
+  }
+
+  // ---------------- Message rendering ----------------
+  function renderMessages(){
+    const c = currentConv();
+    updateTopTitle();
+    messagesEl.innerHTML = "";
+
+    if(!c || c.messages.length === 0){
+      const es = document.createElement("div");
+      es.className = "empty-state";
+      es.innerHTML = `
+        <svg width="34" height="34" viewBox="0 0 34 34" fill="none"><path d="M6 8L15 17L6 26" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><line x1="18" y1="26" x2="27" y2="26" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+        <div class="es-title">${state.apiKey ? "Sohbete başla" : "Önce API key'ini gir"}</div>
+        <div class="es-sub">${state.apiKey ? "NVIDIA modeline soru sor, kod yazdır ya da bir dosya ekle." : "Ayarlar'dan NVIDIA API key'ini ve model ID'sini girerek başla."}</div>`;
+      messagesEl.appendChild(es);
+      scrollToBottom();
+      return;
+    }
+
+    for(const m of c.messages){
+      appendMessageDOM(m);
+    }
+    scrollToBottom();
+  }
+
+  function appendMessageDOM(m){
+    const row = document.createElement("div");
+    row.className = "msg-row " + m.role;
+    row.dataset.id = m.id;
+
+    const avatar = document.createElement("div");
+    avatar.className = "avatar";
+    avatar.textContent = m.role === "user" ? "SEN" : "AI";
+
+    const body = document.createElement("div");
+    body.className = "msg-body";
+
+    if(m.files && m.files.length){
+      const chips = document.createElement("div");
+      chips.style.marginBottom = "6px";
+      for(const f of m.files){
+        const chip = document.createElement("span");
+        chip.className = "file-chip";
+        chip.textContent = (f.kind === "image" ? "🖼 " : "📄 ") + f.name;
+        chips.appendChild(chip);
+      }
+      body.appendChild(chips);
+    }
+
+    const content = document.createElement("div");
+    content.className = "msg-content";
+    body.appendChild(content);
+
+    row.appendChild(avatar);
+    row.appendChild(body);
+    messagesEl.appendChild(row);
+
+    renderMarkdownInto(content, m.content);
+    return content;
+  }
+
+  function scrollToBottom(){
+    requestAnimationFrame(()=>{ scrollArea.scrollTop = scrollArea.scrollHeight; });
+  }
+
+  // ---------------- Error banner ----------------
+  function showError(msg){
+    errorBanner.textContent = msg;
+    errorBanner.classList.remove("hidden");
+  }
+  function hideError(){ errorBanner.classList.add("hidden"); }
+
+  // ---------------- Sending / streaming ----------------
+  function autoGrow(){
+    textInput.style.height = "auto";
+    textInput.style.height = Math.min(textInput.scrollHeight, 200) + "px";
+  }
+  textInput.addEventListener("input", autoGrow);
+  textInput.addEventListener("keydown", (e)=>{
+    if(e.key === "Enter" && !e.shiftKey){
+      e.preventDefault();
+      handleSend();
+    }
+  });
+
+  sendBtn.addEventListener("click", ()=>{
+    if(isStreaming){
+      if(abortController) abortController.abort();
+      return;
+    }
+    handleSend();
+  });
+
+  function buildApiMessages(conv){
+    const msgs = [];
+    if(state.sysPrompt && state.sysPrompt.trim()){
+      msgs.push({ role: "system", content: state.sysPrompt.trim() });
+    }
+    for(const m of conv.messages){
+      if(m.role === "user" && m.files && m.files.some(f=>f.kind==="image")){
+        const parts = [];
+        if(m.content) parts.push({ type: "text", text: m.content });
+        for(const f of m.files){
+          if(f.kind === "image"){
+            parts.push({ type: "image_url", image_url: { url: f.content } });
+          }
+        }
+        msgs.push({ role: "user", content: parts });
+      } else {
+        msgs.push({ role: m.role, content: m.content });
+      }
+    }
+    return msgs;
+  }
+
+  async function handleSend(){
+    if(isStreaming) return;
+    const text = textInput.value.trim();
+    if(!text && pendingFiles.length === 0) return;
+
+    if(!state.apiKey){
+      showError("Önce Ayarlar'dan NVIDIA API key'ini gir.");
+      openSettings();
+      return;
+    }
+    if(!state.currentModel){
+      showError("Önce Ayarlar'dan bir model ID'si ekle ve seç.");
+      openSettings();
+      return;
+    }
+    hideError();
+
+    const conv = currentConv();
+
+    // fold text-file contents into the message body as fenced context
+    let composedText = text;
+    const fileMeta = pendingFiles.map(f=>({name:f.name, kind:f.kind}));
+    const textFileBlocks = pendingFiles
+      .filter(f=>f.kind === "text")
+      .map(f=> `\n\n[Dosya: ${f.name}]\n\`\`\`\n${f.content}\n\`\`\``)
+      .join("");
+    composedText = (text || "") + textFileBlocks;
+
+    const userMsg = {
+      id: "m_" + Date.now() + "_u",
+      role: "user",
+      content: composedText,
+      files: fileMeta.length ? fileMeta.map((meta, i)=>{
+        const src = pendingFiles[i];
+        return { name: meta.name, kind: meta.kind, content: src.kind === "image" ? src.content : undefined };
+      }) : undefined
+    };
+
+    conv.messages.push(userMsg);
+    if(conv.messages.length === 1){
+      conv.title = text ? text.slice(0, 42) : (fileMeta[0] ? fileMeta[0].name : "Yeni sohbet");
+    }
+    conv.updated = Date.now();
+    persistConvs();
+
+    textInput.value = "";
+    autoGrow();
+    pendingFiles = [];
+    renderAttachedChips();
+    renderMessages();
+    renderSidebar();
+
+    // assistant placeholder
+    const asstMsg = { id: "m_" + Date.now() + "_a", role: "assistant", content: "" };
+    conv.messages.push(asstMsg);
+    const contentEl = appendMessageDOM(asstMsg);
+    contentEl.classList.add("cursor-blink");
+    scrollToBottom();
+
+    isStreaming = true;
+    setSendButtonState(true);
+
+    const apiMessages = buildApiMessages({ messages: conv.messages.slice(0, -1) });
+
+    abortController = new AbortController();
+    try{
+      const body = {
+        model: state.currentModel,
+        messages: apiMessages,
+        stream: true,
+        temperature: parseFloat(state.temperature) || 0.7,
+        max_tokens: parseInt(state.maxTokens) || 2048,
+      };
+
+      const resp = await fetch(API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + state.apiKey,
+          "Accept": "text/event-stream",
+        },
+        body: JSON.stringify(body),
+        signal: abortController.signal,
+      });
+
+      if(!resp.ok){
+        let errText = "";
+        try{ errText = await resp.text(); }catch(e){}
+        throw new Error(`HTTP ${resp.status} — ${errText.slice(0,300)}`);
+      }
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let buffer = "";
+      let full = "";
+
+      while(true){
+        const { done, value } = await reader.read();
+        if(done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop();
+        for(const line of lines){
+          const trimmed = line.trim();
+          if(!trimmed.startsWith("data:")) continue;
+          const payload = trimmed.slice(5).trim();
+          if(payload === "[DONE]") continue;
+          try{
+            const json = JSON.parse(payload);
+            const delta = json.choices && json.choices[0] && json.choices[0].delta;
+            const piece = delta && (delta.content || delta.reasoning_content);
+            if(piece){
+              full += piece;
+              asstMsg.content = full;
+              renderMarkdownInto(contentEl, full);
+              scrollToBottom();
+            }
+          }catch(e){ /* ignore partial JSON */ }
+        }
+      }
+
+      if(!full){
+        asstMsg.content = "_(boş yanıt geldi)_";
+        renderMarkdownInto(contentEl, asstMsg.content);
+      }
+
+    }catch(err){
+      if(err.name === "AbortError"){
+        asstMsg.content += "\n\n_[durduruldu]_";
+        renderMarkdownInto(contentEl, asstMsg.content);
+      } else {
+        console.error(err);
+        let msg = err.message || String(err);
+        if(msg.includes("Failed to fetch") || msg.includes("NetworkError")){
+          msg = "İstek başarısız oldu. Bu genelde CORS kısıtlaması veya internet bağlantısı sorunudur — README'deki proxy notuna bak.";
+        }
+        showError(msg);
+        if(!asstMsg.content){
+          conv.messages.pop(); // remove empty placeholder on hard failure
+          renderMessages();
+        }
+      }
+    } finally {
+      contentEl.classList.remove("cursor-blink");
+      isStreaming = false;
+      setSendButtonState(false);
+      abortController = null;
+      conv.updated = Date.now();
+      persistConvs();
+      renderSidebar();
+    }
+  }
+
+  function setSendButtonState(streaming){
+    if(streaming){
+      sendBtn.classList.add("stop");
+      sendBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 14 14"><rect x="2" y="2" width="10" height="10" rx="1.5" fill="currentColor"/></svg>`;
+      sendBtn.disabled = false;
+    } else {
+      sendBtn.classList.remove("stop");
+      sendBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 13V3M8 3L3.5 7.5M8 3L12.5 7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    }
+  }
+
+  // ---------------- File attachment ----------------
+  const TEXT_EXT = /\.(txt|md|csv|json|js|ts|jsx|tsx|py|java|c|cpp|h|hpp|cs|go|rs|rb|php|html|css|scss|xml|yaml|yml|sql|sh|bat|ini|toml|log|gcode|nc|tap)$/i;
+  const IMAGE_TYPES = /^image\/(png|jpe?g|webp|gif)$/i;
+  const MAX_TEXT_BYTES = 300 * 1024;
+
+  attachBtn.addEventListener("click", ()=> fileInput.click());
+  fileInput.addEventListener("change", (e)=>{
+    handleFiles(e.target.files);
+    fileInput.value = "";
+  });
+
+  function handleFiles(fileList){
+    for(const file of fileList){
+      if(IMAGE_TYPES.test(file.type)){
+        const reader = new FileReader();
+        reader.onload = ()=>{
+          pendingFiles.push({ name: file.name, kind: "image", content: reader.result });
+          renderAttachedChips();
+        };
+        reader.readAsDataURL(file);
+      } else if(TEXT_EXT.test(file.name) || file.type.startsWith("text/") || file.type === "application/json"){
+        if(file.size > MAX_TEXT_BYTES){
+          showError(`"${file.name}" çok büyük (${Math.round(file.size/1024)}KB). 300KB altı metin dosyaları desteklenir.`);
+          continue;
+        }
+        const reader = new FileReader();
+        reader.onload = ()=>{
+          pendingFiles.push({ name: file.name, kind: "text", content: reader.result });
+          renderAttachedChips();
+        };
+        reader.readAsText(file);
+      } else {
+        showError(`"${file.name}" desteklenmeyen bir dosya türü. Metin/kod dosyaları veya görsel (png/jpg/webp) ekleyebilirsin.`);
+      }
+    }
+  }
+
+  function renderAttachedChips(){
+    attachedFilesEl.innerHTML = "";
+    pendingFiles.forEach((f, idx)=>{
+      const chip = document.createElement("div");
+      chip.className = "attach-chip";
+      chip.innerHTML = `<span>${(f.kind==="image"?"🖼":"📄")} ${escapeHtml(f.name)}</span>`;
+      const rm = document.createElement("button");
+      rm.textContent = "✕";
+      rm.addEventListener("click", ()=>{
+        pendingFiles.splice(idx, 1);
+        renderAttachedChips();
+      });
+      chip.appendChild(rm);
+      attachedFilesEl.appendChild(chip);
+    });
+  }
+
+  function escapeHtml(s){
+    return s.replace(/[&<>"']/g, (c)=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+  }
+
+  // drag & drop
+  ["dragenter","dragover"].forEach(evt=>{
+    window.addEventListener(evt, (e)=>{ e.preventDefault(); dropOverlay.classList.add("active"); });
+  });
+  ["dragleave","drop"].forEach(evt=>{
+    window.addEventListener(evt, (e)=>{
+      if(evt === "drop"){
+        e.preventDefault();
+        if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length){
+          handleFiles(e.dataTransfer.files);
+        }
+      }
+      dropOverlay.classList.remove("active");
+    });
+  });
+
+  // ---------------- Sidebar toggle ----------------
+  function isMobile(){ return window.innerWidth <= 760; }
+  function openSidebarMobile(){ sidebar.classList.add("open"); sidebarScrim.classList.add("active"); }
+  function closeSidebarMobile(){ sidebar.classList.remove("open"); sidebarScrim.classList.remove("active"); }
+
+  $("menuToggle").addEventListener("click", ()=>{
+    if(isMobile()){
+      if(sidebar.classList.contains("open")) closeSidebarMobile();
+      else openSidebarMobile();
+    } else {
+      sidebar.classList.toggle("collapsed");
+    }
+  });
+  sidebarScrim.addEventListener("click", closeSidebarMobile);
+  $("newChatBtn").addEventListener("click", newConversation);
+
+  // ---------------- Settings modal ----------------
+  const settingsOverlay = $("settingsOverlay");
+  function openSettings(){
+    $("apiKeyInput").value = state.apiKey;
+    $("sysPromptInput").value = state.sysPrompt;
+    $("tempInput").value = state.temperature;
+    $("maxTokInput").value = state.maxTokens;
+    renderModelList();
+    settingsOverlay.classList.remove("hidden");
+  }
+  function closeSettings(){ settingsOverlay.classList.add("hidden"); }
+
+  $("settingsBtn").addEventListener("click", openSettings);
+  $("settingsBtnSide").addEventListener("click", openSettings);
+  $("closeSettingsBtn").addEventListener("click", closeSettings);
+
+  $("toggleKeyVis").addEventListener("click", ()=>{
+    const inp = $("apiKeyInput");
+    inp.type = inp.type === "password" ? "text" : "password";
+  });
+
+  function renderModelList(){
+    const list = $("modelList");
+    list.innerHTML = "";
+    for(const m of state.models){
+      const row = document.createElement("div");
+      row.className = "model-row" + (m === state.currentModel ? " active" : "");
+      row.innerHTML = `<span>${escapeHtml(m)}</span>`;
+      const useBtn = document.createElement("button");
+      useBtn.textContent = m === state.currentModel ? "✓" : "seç";
+      useBtn.style.fontFamily = "var(--mono)";
+      useBtn.style.fontSize = "11px";
+      useBtn.style.color = m === state.currentModel ? "var(--amber)" : "var(--text-dim)";
+      useBtn.addEventListener("click", ()=>{
+        state.currentModel = m;
+        renderModelList();
+      });
+      const delBtn = document.createElement("button");
+      delBtn.textContent = "✕";
+      delBtn.addEventListener("click", ()=>{
+        state.models = state.models.filter(x=>x!==m);
+        if(state.currentModel === m) state.currentModel = state.models[0] || "";
+        renderModelList();
+      });
+      row.appendChild(useBtn);
+      row.appendChild(delBtn);
+      list.appendChild(row);
+    }
+  }
+
+  $("addModelBtn").addEventListener("click", ()=>{
+    const v = $("modelInput").value.trim();
+    if(!v) return;
+    if(!state.models.includes(v)) state.models.push(v);
+    state.currentModel = v;
+    $("modelInput").value = "";
+    renderModelList();
+  });
+  $("modelInput").addEventListener("keydown", (e)=>{
+    if(e.key === "Enter"){ e.preventDefault(); $("addModelBtn").click(); }
+  });
+
+  $("saveSettingsBtn").addEventListener("click", ()=>{
+    state.apiKey = $("apiKeyInput").value.trim();
+    state.sysPrompt = $("sysPromptInput").value;
+    state.temperature = $("tempInput").value.trim() || "0.7";
+    state.maxTokens = $("maxTokInput").value.trim() || "2048";
+
+    localStorage.setItem(LS_KEY, state.apiKey);
+    saveJSON(LS_MODELS, state.models);
+    localStorage.setItem(LS_CURMODEL, state.currentModel);
+    localStorage.setItem(LS_SYSPROMPT, state.sysPrompt);
+    localStorage.setItem(LS_TEMP, state.temperature);
+    localStorage.setItem(LS_MAXTOK, state.maxTokens);
+
+    updateTopTitle();
+    closeSettings();
+    renderMessages();
+  });
+
+  // ---------------- Boot ----------------
+  renderSidebar();
+  renderMessages();
+  updateTopTitle();
+  if(!state.apiKey){
+    setTimeout(openSettings, 300);
+  }
+
+})();
+</script>
+</body>
+</html>
