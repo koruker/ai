@@ -2,1967 +2,1822 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#1B2430">
-<meta name="screen-orientation" content="portrait">
-<title>Kütüphanem</title>
-<link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
-<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<link rel="icon" type="image/svg+xml" href="icon.svg">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>Terminal</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Kütüphanem">
+<meta name="apple-mobile-web-app-title" content="Terminal">
+<meta name="theme-color" content="#15171B">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/base16/tomorrow-night.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.1/marked.min.js"></script>
+
 <style>
   :root{
-    --ink:#1B2430;
-    --ink-2:#232D3B;
-    --paper:#F3EAD8;
-    --paper-2:#EAE0CB;
-    --brass:#B98B4E;
-    --brass-2:#D9AE73;
-    --maroon:#6E2A38;
-    --charcoal:#2A2420;
-    --line:rgba(42,36,32,0.14);
-    --serif: "Iowan Old Style","Palatino Linotype","URW Palladio L",Palatino,Georgia,serif;
-    --sans: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
-    --safe-top: env(safe-area-inset-top, 0px);
-    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --bg: #15171B;
+    --panel: #1C1F24;
+    --panel-2: #22262C;
+    --border: #2B2F36;
+    --text: #E9E6DF;
+    --text-dim: #8C9098;
+    --text-faint: #5B5F66;
+    --amber: #E8A33D;
+    --amber-dim: #7A5A26;
+    --teal: #2D6A5C;
+    --teal-bright: #49947F;
+    --danger: #C0524B;
+    --radius: 6px;
+    --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    --sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }
-  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-  html,body{height:100%; height:100dvh; width:100%; overscroll-behavior:none;}
+
+  @font-face{
+    font-family: 'IBM Plex Sans';
+    src: local('IBM Plex Sans');
+  }
+
+  *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body{ height: 100%; }
   body{
     margin:0;
-    background:var(--ink);
-    color:var(--paper);
-    font-family:var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.55;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  #app{
+    display:flex;
+    height: 100vh;
+    height: 100dvh;
+    width: 100vw;
+  }
+
+  /* ---------- Sidebar ---------- */
+  #sidebar{
+    width: 264px;
+    flex-shrink:0;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    display:flex;
+    flex-direction:column;
+    transition: margin-left .22s ease;
+  }
+  #sidebar.collapsed{ margin-left: -264px; }
+
+  .sidebar-head{
+    padding: 16px 14px 12px 14px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    font-family: var(--sans);
+    font-weight:600;
+    font-size: 15px;
+    color: var(--text);
+    letter-spacing: -.1px;
+  }
+  .brand svg{ flex-shrink:0; }
+  .brand-mark{
+    width: 24px; height: 24px; border-radius: 7px;
+    background: var(--amber); color: #1A1300;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+
+  .new-chat-btn{
+    margin: 6px 14px 10px 14px;
+    padding: 10px 13px;
+    background: var(--amber);
+    border: none;
+    color: #1A1300;
+    border-radius: 10px;
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: 13.5px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    transition: filter .15s;
+  }
+  .new-chat-btn:hover{ filter: brightness(1.08); }
+
+  #convList{
+    flex:1;
+    overflow-y:auto;
+    padding: 4px 8px 8px 8px;
+  }
+  .conv-group-label{
+    font-size: 11px;
+    color: var(--text-faint);
+    padding: 12px 10px 4px 10px;
+    font-family: var(--sans);
+    font-weight: 600;
+  }
+  .conv-group-label:first-child{ padding-top: 4px; }
+  .conv-item{
+    padding: 9px 10px;
+    border-radius: 8px;
+    cursor:pointer;
+    font-size: 13.5px;
+    color: var(--text-dim);
+    white-space:nowrap;
     overflow:hidden;
-    position:fixed;
-    inset:0;
-    touch-action:manipulation;
+    text-overflow:ellipsis;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:6px;
+    margin-bottom: 1px;
+    border: 1px solid transparent;
   }
-  #app{position:absolute; inset:0; display:flex; flex-direction:column;}
+  .conv-item:hover{ background: var(--panel-2); color: var(--text); }
+  .conv-item.active{ background: var(--panel-2); color: var(--text); border-color: var(--border); }
+  .conv-item .title{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
+  .conv-del{
+    opacity:0;
+    background:none; border:none; color: var(--text-faint);
+    cursor:pointer; padding: 2px 4px; font-size: 14px; flex-shrink:0;
+    border-radius: 4px;
+  }
+  .conv-item:hover .conv-del{ opacity: 1; }
+  .conv-del:hover{ color: var(--danger); }
 
-  /* Portrait-only: iOS/Safari can't be force-locked from a web page, so we
-     block interaction with a full-screen notice whenever the device is
-     rotated to landscape instead. */
-  #rotateGate{
-    display:none; position:fixed; inset:0; z-index:999; background:var(--ink);
-    color:var(--paper); align-items:center; justify-content:center; flex-direction:column;
-    gap:14px; text-align:center; padding:30px;
+  .sidebar-foot{
+    padding: 10px 14px 14px 14px;
+    border-top: 1px solid var(--border);
   }
-  @media (orientation:landscape) and (max-height:600px){
-    #rotateGate{display:flex;}
+  .foot-btn{
+    width:100%;
+    padding: 8px 10px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: var(--radius);
+    font-family: var(--sans);
+    font-size: 13px;
+    cursor:pointer;
+    text-align:left;
+    display:flex;
+    align-items:center;
+    gap:8px;
   }
-  #rotateGate svg{width:56px; height:56px; opacity:0.7;}
-  #rotateGate p{font-family:var(--serif); font-size:16px; max-width:260px; line-height:1.5; margin:0;}
-  button{font-family:inherit; border:none; background:none; color:inherit; cursor:pointer;}
-  button:active{opacity:0.7;}
-  ::selection{background:var(--brass); color:var(--ink);}
+  .foot-btn:hover{ color: var(--text); border-color: var(--amber-dim); }
 
-  /* ---------- LIBRARY ---------- */
-  #view-library{position:absolute; inset:0; display:flex; flex-direction:column; background:
-    radial-gradient(1200px 600px at 20% -10%, #263041 0%, var(--ink) 55%);
+  /* ---------- Main column ---------- */
+  #main{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    min-width:0;
+    position: relative;
   }
-  .topbar{
-    padding: calc(18px + var(--safe-top)) 22px 14px;
-    display:flex; align-items:baseline; justify-content:space-between;
-    border-bottom:1px solid rgba(255,255,255,0.07);
+
+  #topbar{
+    height: 52px;
+    flex-shrink:0;
+    display:flex;
+    align-items:center;
+    gap: 10px;
+    padding: 0 14px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
   }
-  .brand{font-family:var(--serif); font-size:26px; letter-spacing:0.3px; color:var(--paper);}
-  .brand em{font-style:italic; color:var(--brass-2);}
-  .subcount{font-size:12.5px; color:rgba(243,234,216,0.5); margin-top:2px;}
-  .scan-fab{
-    width:46px; height:46px; border-radius:50%;
-    background:var(--brass); color:var(--ink);
-    display:flex; align-items:center; justify-content:center;
-    box-shadow:0 6px 16px rgba(185,139,78,0.35);
+  #menuToggle{
+    background:none; border:none; color: var(--text-dim); cursor:pointer;
+    padding: 6px 9px 6px 6px; border-radius: 6px; display:flex; align-items:center; gap:6px;
     flex-shrink:0;
   }
-  .scan-fab svg{width:22px; height:22px;}
-  .topbar-actions{display:flex; align-items:center; gap:10px;}
-  .settings-btn{
-    width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,0.08);
-    color:var(--paper); display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  #menuToggle span{ font-size: 12.5px; font-family: var(--sans); }
+  #menuToggle:hover{ color: var(--text); background: var(--panel-2); }
+  @media (max-width: 400px){
+    #menuToggle span{ display:none; }
   }
-  .settings-btn svg{width:19px; height:19px;}
-
-  #shelf{flex:1; overflow-y:auto; padding:22px 20px calc(40px + var(--safe-bottom));}
-  .grid{
-    display:grid;
-    grid-template-columns:repeat(auto-fill, minmax(112px,1fr));
-    gap:22px 16px;
+  #composeBtn{
+    background:none; border:none; color: var(--text-dim); cursor:pointer;
+    padding: 6px; border-radius: 6px; display:flex; align-items:center; flex-shrink:0;
   }
-  .book-card{display:flex; flex-direction:column; gap:8px; text-align:left; cursor:pointer;}
-  .spine{
-    position:relative; aspect-ratio:3/4.2; border-radius:3px 7px 7px 3px;
-    background:linear-gradient(135deg,#3a2f2a,#241c18);
-    box-shadow: -3px 0 0 rgba(0,0,0,0.35) inset, 0 10px 18px rgba(0,0,0,0.4);
+  #composeBtn:hover{ color: var(--text); background: var(--panel-2); }
+  .top-title{
+    font-size: 13.5px;
+    color: var(--text-dim);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    flex:1;
+  }
+  .model-chip{
+    font-family: var(--sans);
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text);
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    padding: 6px 10px;
+    border-radius: 100px;
+    white-space:nowrap;
+    max-width: 46vw;
     overflow:hidden;
-    border:1px solid rgba(0,0,0,0.4);
+    display:flex;
+    align-items:center;
+    gap:6px;
+    cursor:pointer;
+    flex-shrink:0;
+    transition: border-color .15s, background .15s;
   }
-  .spine img{width:100%; height:100%; object-fit:cover; display:block; opacity:0.96;}
-  .spine .spine-edge{position:absolute; left:0; top:0; bottom:0; width:9px; background:linear-gradient(90deg, rgba(255,255,255,0.15), rgba(0,0,0,0.25));}
-  .spine .no-cover{width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:rgba(243,234,216,0.35); font-family:var(--serif); font-size:34px;}
-  .edit-fab{position:absolute; top:6px; right:6px; z-index:2; width:27px; height:27px; border-radius:50%; background:rgba(15,18,22,0.62); backdrop-filter:blur(2px); display:flex; align-items:center; justify-content:center; color:var(--paper);}
-  .edit-fab svg{width:13px; height:13px;}
-  .book-title{font-family:var(--serif); font-size:14.5px; line-height:1.25; color:var(--paper);}
-  .book-meta{font-size:11px; color:rgba(243,234,216,0.45);}
+  .model-chip:hover{ border-color: var(--amber-dim); background: rgba(232,163,61,0.08); }
+  .model-chip svg{ flex-shrink:0; color: var(--text-faint); }
+  #modelChipText{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #settingsBtn{
+    background:none; border:none; color: var(--text-dim); cursor:pointer;
+    padding: 6px; border-radius: 4px; display:flex; flex-shrink:0;
+  }
+  #settingsBtn:hover{ color: var(--amber); background: var(--panel-2); }
 
-  .empty-state{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px; text-align:center; gap:18px;}
-  .empty-state svg{width:88px; height:88px; opacity:0.5;}
-  .empty-state h2{font-family:var(--serif); font-weight:400; font-size:21px; margin:0; color:var(--paper);}
-  .empty-state p{margin:0; font-size:14px; color:rgba(243,234,216,0.55); max-width:260px; line-height:1.5;}
-  .cta-btn{
-    margin-top:6px; background:var(--brass); color:var(--ink); font-size:14.5px; font-weight:600;
-    padding:12px 26px; border-radius:999px;
+  /* ---------- Messages ---------- */
+  #scrollArea{
+    flex:1;
+    overflow-y:auto;
+    padding: 10px 0 12px 0;
+  }
+  #messages{
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 0 18px;
+    display:flex;
+    flex-direction:column;
+    gap: 4px;
+    min-height:100%;
   }
 
-  /* ---------- READER ---------- */
-  #view-reader{position:absolute; inset:0; background:#0F1216; display:none; flex-direction:column;}
-  #view-reader.active{display:flex;}
-  .reader-top{
-    padding: calc(14px + var(--safe-top)) 14px 10px; display:flex; align-items:center; gap:10px;
-    background:linear-gradient(#0F1216, rgba(15,18,22,0.0));
-    position:relative; z-index:5;
+  .empty-state{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    color: var(--text-faint);
+    padding: 40px 20px;
+    gap: 8px;
   }
-  .icon-btn{width:38px; height:38px; display:flex; align-items:center; justify-content:center; border-radius:50%; color:var(--paper);}
-  .btn-done{height:38px; padding:0 14px; border-radius:999px; background:rgba(185,139,78,0.22); color:var(--brass-2); font-size:13px; font-weight:700; flex-shrink:0;}
-  /* Reading mode strips the UI down to just the back arrow + mark button.
-     Edit mode (entered via the library pencil icon or "⋮" from within) shows
-     everything: title, page count, Bitti, book menu, add-page. */
-  #view-reader.mode-read .edit-only{ display:none !important; }
-  #view-reader.mode-read #btnBackLib{ opacity:0.55; }
-  .icon-btn svg{width:20px; height:20px;}
-  .reader-title{flex:1; min-width:0;}
-  .reader-title .t{font-family:var(--serif); font-size:15px; color:var(--paper); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .reader-title .p{font-size:11px; color:rgba(243,234,216,0.45); margin-top:1px;}
+  .empty-state svg{ opacity:.4; margin-bottom: 10px; }
+  .empty-state .es-title{ font-family: var(--sans); font-weight:600; color: var(--text); font-size: 19px; }
+  .empty-state .es-sub{ font-size: 13.5px; max-width: 340px; color: var(--text-dim); }
 
-  .stage-wrap{flex:1; position:relative; display:flex; align-items:center; justify-content:center; padding:6px 14px; overflow:hidden;}
-  .book-stage{
-    position:relative; width:100%; height:100%; max-width:560px;
-    perspective:2400px; touch-action:none;
+  .msg-row{
+    display:flex;
+    gap: 12px;
+    padding: 4px 0;
   }
-  .leaf{
-    position:absolute; inset:0; border-radius:2px;
-    box-shadow:0 18px 40px rgba(0,0,0,0.55);
-    background:#e9e2d0; overflow:hidden;
+  .msg-row.user{
+    justify-content: flex-end;
   }
-  .leaf.base{z-index:1;}
-  .leaf-empty{width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:rgba(0,0,0,0.3); font-family:var(--serif);}
-  .reader-media{position:absolute; left:0; top:0; transform-origin:0 0; will-change:transform;}
-  .reader-media img{display:block; width:100%; height:100%; -webkit-user-drag:none; user-select:none;}
-  #highlightLayer{position:absolute; inset:0; pointer-events:none;}
-  .hl-rect{position:absolute; border:2px solid rgba(217,174,115,0.95); background:rgba(217,174,115,0.16); border-radius:2px;}
-
-  .flip{
-    position:absolute; inset:0; transform-style:preserve-3d;
-    transform-origin:left center; z-index:3; will-change:transform;
+  .msg-row.user .msg-body{
+    max-width: 82%;
   }
-  .flip .face{position:absolute; inset:0; backface-visibility:hidden; border-radius:2px; overflow:hidden; background:#e9e2d0;}
-  .flip .face img{width:100%; height:100%; object-fit:contain; display:block;}
-  .flip .front{transform:rotateY(0deg);}
-  .flip .back{transform:rotateY(180deg);}
-  .flip .shade{position:absolute; inset:0; background:linear-gradient(90deg, rgba(0,0,0,0.28), rgba(0,0,0,0) 40%); opacity:0; pointer-events:none;}
-
-  .tap-zone{position:absolute; top:0; bottom:0; width:26%; z-index:4;}
-  .tap-zone.left{left:0;}
-  .tap-zone.right{right:0;}
-
-  .mark-overlay{position:absolute; inset:0; z-index:6; display:none; touch-action:none; background:rgba(11,13,16,0.28);}
-  .mark-overlay.active{display:block;}
-  .mark-hint{position:absolute; top:10px; left:0; right:0; text-align:center; font-size:12px; color:var(--paper); pointer-events:none;}
-  .mark-cancel{position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.5); color:var(--paper); font-size:12px; padding:6px 12px; border-radius:999px;}
-  .mark-rect{position:absolute; border:2px dashed var(--brass-2); background:rgba(217,174,115,0.18); pointer-events:none;}
-
-  .reader-bottom{padding:10px 16px calc(14px + var(--safe-bottom)); display:flex; align-items:center; justify-content:center; gap:10px;}
-  .mark-btn{
-    display:flex; align-items:center; gap:7px; background:rgba(255,255,255,0.07); color:var(--paper);
-    border:1px solid rgba(255,255,255,0.16); padding:9px 16px; border-radius:999px; font-size:13px; font-weight:600;
+  .msg-row.user .msg-content{
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 11px 16px;
   }
-  .mark-btn svg{width:15px; height:15px;}
-  .mark-btn.on{background:rgba(185,139,78,0.22); color:var(--brass-2); border-color:rgba(185,139,78,0.5);}
-  .add-page-btn{
-    display:flex; align-items:center; gap:8px; background:rgba(185,139,78,0.16); color:var(--brass-2);
-    border:1px solid rgba(185,139,78,0.4); padding:9px 16px; border-radius:999px; font-size:13px; font-weight:600;
+  .msg-row.assistant{
+    padding: 10px 0;
   }
-  .add-page-btn svg{width:15px; height:15px;}
-
-  /* ---------- SCAN ---------- */
-  #view-scan{position:absolute; inset:0; background:#000; display:none; flex-direction:column; z-index:20;}
-  #view-scan.active{display:flex;}
-  .scan-top{
-    padding: calc(14px + var(--safe-top)) 16px 10px; display:flex; align-items:center; justify-content:space-between; color:var(--paper); z-index:2;
+  .avatar{
+    width: 26px; height: 26px; flex-shrink:0;
+    border-radius: 50%;
+    display:flex; align-items:center; justify-content:center;
+    margin-top: 2px;
   }
-  .scan-top .count{font-size:13px; color:rgba(243,234,216,0.65);}
-  .camera-wrap{flex:1; position:relative; background:#111; overflow:hidden;}
-  #camVideo{width:100%; height:100%; object-fit:cover; display:block;}
-  .cam-fallback{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:14px; padding:30px; text-align:center; color:rgba(243,234,216,0.7);}
-  .guide-frame{position:absolute; inset:6% 5%; border:1.5px dashed rgba(243,234,216,0.55); border-radius:8px; pointer-events:none;}
-  .scan-bottom{padding:22px 20px calc(26px + var(--safe-bottom)); display:flex; align-items:center; justify-content:center; gap:36px;}
-  .shutter{
-    width:70px; height:70px; border-radius:50%; background:var(--paper); border:4px solid rgba(243,234,216,0.35);
+  .msg-row.user .avatar{ display:none; }
+  .msg-row.assistant .avatar{
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--amber);
   }
-  .side-btn{width:44px; height:44px; border-radius:50%; background:rgba(255,255,255,0.1); color:var(--paper); display:flex; align-items:center; justify-content:center;}
-  .side-btn svg{width:20px; height:20px;}
-  input#galleryInput{display:none;}
 
-  /* ---------- CROP ---------- */
-  #view-crop{position:absolute; inset:0; background:#0B0D10; display:none; flex-direction:column; z-index:21; height:100dvh;}
-  #view-crop.active{display:flex;}
-  .crop-top{padding: calc(14px + var(--safe-top)) 16px 8px; display:flex; align-items:center; justify-content:space-between; color:var(--paper); flex-shrink:0;}
-  .crop-top button{font-size:14px; color:var(--brass-2); font-weight:600; display:flex; align-items:center; gap:6px; padding:6px;}
-  .crop-tools{display:flex; gap:6px;}
-  .crop-tools button{width:38px; height:38px; border-radius:50%; background:rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:center;}
-  .crop-tools button svg{width:18px; height:18px; color:var(--paper);}
-  .crop-tools button.ai{background:rgba(185,139,78,0.22);}
-  .crop-tools button.ai svg{color:var(--brass-2);}
-  .crop-tools button.loading{opacity:0.55; pointer-events:none;}
-  .crop-tools button.loading svg{animation:spin 900ms linear infinite;}
-  @keyframes spin{ to{ transform:rotate(360deg); } }
+  .msg-body{ flex:1; min-width:0; padding-top: 3px; }
+  .msg-content{ color: var(--text); word-wrap: break-word; }
+  .msg-content p{ margin: 0 0 10px 0; }
+  .msg-content p:last-child{ margin-bottom:0; }
+  .msg-content ul, .msg-content ol{ margin: 6px 0 12px 0; padding-left: 22px; }
+  .msg-content li{ margin-bottom: 4px; }
+  .msg-content a{ color: var(--teal-bright); }
+  .msg-content h1, .msg-content h2, .msg-content h3{ font-size: 1.05em; margin: 16px 0 8px 0; color: var(--text); }
+  .msg-content blockquote{
+    margin: 8px 0; padding: 2px 12px; border-left: 2px solid var(--border); color: var(--text-dim);
+  }
+  .msg-content code:not(pre code){
+    background: var(--panel-2);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 0.87em;
+    color: var(--amber);
+  }
+  .msg-content table{ border-collapse: collapse; margin: 10px 0; font-size: .92em; }
+  .msg-content th, .msg-content td{ border: 1px solid var(--border); padding: 5px 10px; }
 
-  .crop-stage{flex:1 1 auto; position:relative; min-height:0; overflow:hidden; touch-action:none;}
-  #cropViewport{position:absolute; inset:0; overflow:hidden; background:#15181c; touch-action:none;}
-  #cropImg{position:absolute; left:0; top:0; transform-origin:top left; display:block; user-select:none; -webkit-user-drag:none; pointer-events:none; will-change:transform;}
-  .crop-dim{position:absolute; inset:0; pointer-events:none;}
-  .crop-dim i{position:absolute; display:block; background:rgba(0,0,0,0.55);}
-  .crop-rect{position:absolute; border:1.5px solid var(--brass-2); box-shadow:0 0 0 1px rgba(0,0,0,0.4); touch-action:none;}
-  .crop-rect .third{position:absolute; background:rgba(243,234,216,0.35);}
-  .crop-rect .third.v1{left:33.333%; top:0; bottom:0; width:1px;}
-  .crop-rect .third.v2{left:66.666%; top:0; bottom:0; width:1px;}
-  .crop-rect .third.h1{top:33.333%; left:0; right:0; height:1px;}
-  .crop-rect .third.h2{top:66.666%; left:0; right:0; height:1px;}
-  .handle{position:absolute; width:44px; height:44px; margin:-22px; touch-action:none;}
-  .handle::after{content:""; position:absolute; inset:17px; border-radius:50%; background:var(--brass-2); border:2px solid #14171b; box-shadow:0 1px 4px rgba(0,0,0,0.5);}
-  .hint{position:absolute; left:0; right:0; bottom:10px; text-align:center; font-size:11.5px; color:rgba(243,234,216,0.55); pointer-events:none;}
+  .code-block{
+    position:relative;
+    margin: 10px 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow:hidden;
+    background: #0F1013;
+  }
+  .code-block-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 6px 10px;
+    background: var(--panel-2);
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-faint);
+  }
+  .copy-btn{
+    background:none; border: 1px solid var(--border); color: var(--text-dim);
+    font-family: var(--sans); font-size: 11px;
+    padding: 3px 8px; border-radius: 4px; cursor:pointer;
+  }
+  .copy-btn:hover{ color: var(--amber); border-color: var(--amber-dim); }
+  .code-block pre{ margin:0; padding: 12px 14px; overflow-x:auto; }
+  .code-block code{ font-family: var(--mono); font-size: 13px; line-height: 1.5; }
 
-  .filters-row{display:flex; gap:10px; padding:12px 16px; overflow-x:auto; flex-shrink:0;}
-  .filter-chip{flex-shrink:0; padding:8px 16px; border-radius:999px; font-size:12.5px; background:rgba(255,255,255,0.08); color:rgba(243,234,216,0.7); border:1px solid transparent;}
-  .filter-chip.on{background:rgba(185,139,78,0.2); color:var(--brass-2); border-color:rgba(185,139,78,0.5);}
-  .filter-chip.ai-chip.on{background:rgba(185,139,78,0.32);}
-  .filter-chip.loading{opacity:0.55; pointer-events:none;}
-  .crop-bottom{padding:6px 20px calc(18px + var(--safe-bottom)); display:flex; gap:12px; flex-shrink:0;}
-  .btn-outline{flex:1; padding:13px; border-radius:12px; border:1px solid rgba(243,234,216,0.25); color:var(--paper); font-size:14px;}
-  .btn-solid{flex:1.4; padding:13px; border-radius:12px; background:var(--brass); color:var(--ink); font-size:14px; font-weight:700;}
+  .file-chip{
+    display:inline-flex; align-items:center; gap:6px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    padding: 4px 9px 4px 7px;
+    border-radius: 100px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--text-dim);
+    margin: 2px 6px 2px 0;
+  }
 
-  /* ---------- MISC ---------- */
-  .sheet-mask{position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:30; display:none; align-items:flex-end;}
-  .sheet-mask.active{display:flex;}
-  .sheet{background:var(--paper-2); color:var(--charcoal); width:100%; border-radius:18px 18px 0 0; padding:20px 20px calc(20px + var(--safe-bottom));}
-  .sheet h3{margin:0 0 14px; font-family:var(--serif); font-weight:400; font-size:17px;}
-  .sheet input[type=text]{width:100%; padding:12px; border-radius:10px; border:1px solid var(--line); font-size:15px; font-family:inherit; background:#fff;}
-  .sheet-actions{display:flex; gap:10px; margin-top:16px;}
-  .sheet-actions button{flex:1; padding:12px; border-radius:10px; font-size:14px;}
-  .sheet-actions .save{background:var(--ink); color:var(--paper); font-weight:600;}
-  .sheet-actions .cancel{background:rgba(0,0,0,0.06);}
-  .sheet-actions .danger{background:var(--maroon); color:#fff; font-weight:600;}
+  .cursor-blink::after{
+    content:'▌';
+    color: var(--amber);
+    animation: blink 1s step-start infinite;
+    margin-left: 1px;
+  }
+  @keyframes blink{ 50%{ opacity:0; } }
 
-  .key-row{display:flex; gap:8px;}
-  .key-row input{flex:1;}
-  .key-row button{flex-shrink:0; width:44px; border-radius:10px; background:rgba(0,0,0,0.06); font-size:12px;}
-  .settings-note{font-size:12.5px; color:#6b6258; line-height:1.5; margin-top:10px;}
-  .settings-note a{color:var(--maroon);}
+  /* ---------- Input dock ---------- */
+  #inputDock{
+    flex-shrink:0;
+    padding: 10px 18px calc(14px + env(safe-area-inset-bottom)) 18px;
+    border-top: 1px solid var(--border);
+    background: var(--bg);
+  }
+  #inputInner{
+    max-width: 780px;
+    margin: 0 auto;
+  }
+  #attachedFiles{
+    display:flex; flex-wrap:wrap; margin-bottom: 6px;
+  }
+  #attachedFiles:empty{ display:none; }
+  .attach-chip{
+    display:inline-flex; align-items:center; gap:6px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    padding: 4px 6px 4px 10px;
+    border-radius: 100px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--text-dim);
+    margin: 3px 6px 3px 0;
+  }
+  .attach-chip button{
+    background:none; border:none; color: var(--text-faint); cursor:pointer;
+    font-size: 13px; padding: 1px 3px; line-height:1;
+  }
+  .attach-chip button:hover{ color: var(--danger); }
 
-  .fav-list{max-height:52vh; overflow-y:auto; display:flex; flex-direction:column; gap:10px; margin-top:4px;}
-  .fav-empty{font-size:13.5px; color:#6b6258; padding:14px 2px;}
-  .fav-row{display:flex; align-items:center; gap:12px; text-align:left;}
-  .fav-thumb{width:52px; height:68px; border-radius:6px; overflow:hidden; background:#ddd3bd; flex-shrink:0; border:1px solid var(--line);}
-  .fav-thumb img{width:100%; height:100%; object-fit:cover; display:block;}
-  .fav-info{flex:1; min-width:0;}
-  .fav-info .fp{font-size:12px; color:#8a8074; margin-bottom:2px;}
-  .fav-info .fn{font-size:14px; color:var(--charcoal); overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;}
-  .fav-del{flex-shrink:0; width:34px; height:34px; border-radius:50%; background:rgba(110,42,56,0.1); color:var(--maroon); display:flex; align-items:center; justify-content:center;}
-  .fav-del svg{width:16px; height:16px;}
-  .fav-book{font-size:11px; color:var(--brass); font-weight:600; margin-bottom:1px;}
+  #inputBar{
+    display:flex;
+    align-items:flex-end;
+    gap: 8px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 26px;
+    padding: 8px 8px 8px 16px;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  #inputBar:focus-within{ border-color: var(--amber-dim); box-shadow: 0 0 0 3px rgba(232,163,61,0.08); }
 
-  .pgm-row{display:flex; align-items:center; gap:12px;}
-  .pgm-info{flex:1; font-size:13.5px; color:var(--charcoal);}
-  .pgm-actions{display:flex; gap:6px; flex-shrink:0;}
-  .pgm-btn{width:32px; height:32px; border-radius:8px; background:rgba(0,0,0,0.06); display:flex; align-items:center; justify-content:center; font-size:14px; color:var(--charcoal);}
-  .pgm-btn:disabled{opacity:0.25;}
-  .pgm-btn.danger{background:rgba(110,42,56,0.12); color:var(--maroon);}
-  .pgm-btn svg{width:15px; height:15px;}
+  #textInput{
+    flex:1;
+    background:none;
+    border:none;
+    outline:none;
+    resize:none;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.5;
+    max-height: 200px;
+    padding: 8px 0;
+  }
+  #textInput::placeholder{ color: var(--text-faint); }
 
-  .toast{position:fixed; left:50%; bottom:calc(30px + var(--safe-bottom)); transform:translateX(-50%); background:rgba(20,20,20,0.92); color:#fff; padding:10px 18px; border-radius:999px; font-size:13px; z-index:60; opacity:0; pointer-events:none; transition:opacity .25s;}
-  .toast.show{opacity:1;}
+  .icon-btn{
+    background:none;
+    border:none;
+    color: var(--text-dim);
+    cursor:pointer;
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+  }
+  .icon-btn:hover{ background: var(--panel-2); color: var(--text); }
 
-  @media (prefers-reduced-motion: reduce){
-    .flip{transition:none !important;}
+  #sendBtn{
+    background: var(--amber);
+    color: #1A1300;
+    border:none;
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+    transition: opacity .15s;
+  }
+  #sendBtn:disabled{ opacity:.35; cursor:default; }
+  #sendBtn.stop{ background: var(--danger); color: #fff; }
+
+  .hint-row{
+    text-align:center;
+    font-size: 11px;
+    color: var(--text-faint);
+    margin-top: 8px;
+    font-family: var(--mono);
+  }
+
+  /* ---------- Modal ---------- */
+  .modal-overlay{
+    position:fixed; inset:0; background: rgba(10,11,13,0.6);
+    display:flex; align-items:center; justify-content:center;
+    z-index: 100;
+    padding: 20px;
+    backdrop-filter: blur(2px);
+  }
+  .modal-overlay.hidden{ display:none; }
+  .modal{
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    width: 100%;
+    max-width: 440px;
+    max-height: 86vh;
+    overflow-y:auto;
+    padding: 20px;
+  }
+  .modal h2{
+    font-family: var(--mono);
+    font-size: 15px;
+    color: var(--amber);
+    margin: 0 0 4px 0;
+    font-weight:600;
+  }
+  .modal .sub{ font-size: 12.5px; color: var(--text-faint); margin: 0 0 18px 0; }
+  .field{ margin-bottom: 14px; }
+  .field label{
+    display:block;
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+    font-family: var(--mono);
+  }
+  .field input[type=text], .field input[type=password], .field textarea, .field select{
+    width:100%;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 9px 10px;
+    border-radius: var(--radius);
+    font-family: var(--sans);
+    font-size: 13.5px;
+    outline:none;
+  }
+  .field input:focus, .field textarea:focus, .field select:focus{ border-color: var(--amber-dim); }
+  .field textarea{ resize:vertical; min-height: 56px; font-family: var(--mono); font-size: 12.5px; }
+  .field .row{ display:flex; gap: 8px; }
+  .field .row > *{ flex:1; }
+  .field .hint{ font-size: 11px; color: var(--text-faint); margin-top: 5px; }
+  .field .hint a{ color: var(--teal-bright); }
+
+  .key-toggle{ display:flex; align-items:center; gap:8px; }
+  .key-toggle input{ flex:1; }
+
+  .model-list{ display:flex; flex-direction:column; gap:6px; margin-top: 6px; }
+  .model-row{
+    display:flex; align-items:center; gap:8px;
+    background: var(--panel-2); border:1px solid var(--border); border-radius: var(--radius);
+    padding: 7px 9px;
+  }
+  .model-row span{ flex:1; font-family: var(--mono); font-size:12px; color: var(--text-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .model-row.active span{ color: var(--amber); }
+  .model-row button{ background:none; border:none; color: var(--text-faint); cursor:pointer; font-size:13px; }
+  .model-row button:hover{ color: var(--danger); }
+  .model-row.active{ border-color: var(--amber-dim); }
+
+  /* chain settings */
+  .chain-field{
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px;
+    background: rgba(255,255,255,0.012);
+  }
+  .toggle-switch{ position:relative; display:inline-block; }
+  .toggle-switch input{ position:absolute; opacity:0; width:40px; height:22px; margin:0; cursor:pointer; z-index:2; }
+  .toggle-track{
+    display:block; width:40px; height:22px; border-radius:100px;
+    background: var(--panel-2); border: 1px solid var(--border);
+    position:relative; transition: background .15s, border-color .15s;
+  }
+  .toggle-thumb{
+    position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%;
+    background: var(--text-faint); transition: transform .15s, background .15s;
+  }
+  .toggle-switch input:checked + .toggle-track{ background: rgba(232,163,61,0.18); border-color: var(--amber-dim); }
+  .toggle-switch input:checked + .toggle-track .toggle-thumb{ transform: translateX(18px); background: var(--amber); }
+
+  .chain-list-row{
+    display:flex; align-items:center; gap:8px;
+    background: var(--panel-2); border:1px solid var(--border); border-radius: var(--radius);
+    padding: 7px 9px;
+  }
+  .chain-order-badge{
+    font-family: var(--mono); font-size: 11px; color: var(--amber);
+    background: rgba(232,163,61,0.12); border: 1px solid rgba(232,163,61,0.32);
+    width: 20px; height: 20px; border-radius: 5px;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .chain-list-row span.chain-model-name{ flex:1; font-family: var(--mono); font-size:12px; color: var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .chain-list-row button{ background:none; border:1px solid var(--border); color: var(--text-dim); cursor:pointer; font-size:12px; border-radius:4px; width:24px; height:24px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .chain-list-row button:hover:not(:disabled){ color: var(--amber); border-color: var(--amber-dim); }
+  .chain-list-row button:disabled{ opacity:.3; cursor:default; }
+  .chain-list-row button.chain-remove:hover:not(:disabled){ color: var(--danger); border-color: var(--danger); }
+
+  /* chain message rendering */
+  .chain-stages{ margin-bottom: 10px; }
+  details.chain-stage{
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 6px;
+    background: rgba(255,255,255,0.012);
+  }
+  details.chain-stage summary{
+    cursor: pointer;
+    padding: 7px 10px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--text-faint);
+    display:flex;
+    align-items:center;
+    gap: 8px;
+    list-style: none;
+  }
+  details.chain-stage summary::-webkit-details-marker{ display:none; }
+  details.chain-stage summary::before{
+    content: "▸";
+    color: var(--text-faint);
+    transition: transform .12s;
+  }
+  details.chain-stage[open] summary::before{ transform: rotate(90deg); }
+  .chain-stage-num{ color: var(--teal-bright); }
+  .chain-stage-model{ color: var(--text-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .chain-stage-body{ padding: 2px 12px 12px 12px; font-size: 13.5px; }
+  .chain-final-label{
+    font-family: var(--mono); font-size: 11px; color: var(--amber);
+    margin: 4px 0 6px 0; letter-spacing: .3px;
+  }
+
+  .modal-actions{
+    display:flex; gap: 8px; margin-top: 18px;
+  }
+  .btn{
+    padding: 9px 14px;
+    border-radius: var(--radius);
+    font-family: var(--sans);
+    font-size: 13.5px;
+    cursor:pointer;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    flex:1;
+    text-align:center;
+  }
+  .btn.primary{ background: var(--amber); color: #1A1300; border-color: var(--amber); font-weight:600; }
+  .btn:hover{ filter: brightness(1.1); }
+
+  .error-banner{
+    background: rgba(192,82,75,0.12);
+    border: 1px solid rgba(192,82,75,0.4);
+    color: #E39490;
+    padding: 10px 12px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    margin: 10px 18px 0 18px;
+    max-width: 780px;
+    margin-left:auto; margin-right:auto;
+  }
+  .error-banner.hidden{ display:none; }
+
+  #dropOverlay{
+    position:fixed; inset:0; background: rgba(232,163,61,0.08);
+    border: 2px dashed var(--amber);
+    display:none;
+    align-items:center; justify-content:center;
+    z-index: 90; pointer-events:none;
+    font-family: var(--mono); color: var(--amber); font-size: 16px;
+  }
+  #dropOverlay.active{ display:flex; }
+
+  /* scrollbars */
+  ::-webkit-scrollbar{ width: 9px; height: 9px; }
+  ::-webkit-scrollbar-track{ background: transparent; }
+  ::-webkit-scrollbar-thumb{ background: #33373E; border-radius: 5px; }
+  ::-webkit-scrollbar-thumb:hover{ background: #40454D; }
+
+  @media (max-width: 760px){
+    #sidebar{ position:fixed; top:0; bottom:0; left:0; z-index: 80; margin-left:-264px; box-shadow: 0 0 0 2000px rgba(0,0,0,0); }
+    #sidebar.open{ margin-left:0; box-shadow: 10px 0 30px rgba(0,0,0,0.4); }
+    #sidebarScrim{ display:none; position:fixed; inset:0; background: rgba(0,0,0,0.45); z-index:70; }
+    #sidebarScrim.active{ display:block; }
+    .top-title{ display:none; }
+    .model-chip{ max-width: 56vw; }
+    #messages{ padding: 0 14px; }
   }
 </style>
 </head>
 <body>
-<div id="rotateGate">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M18 8l3 3-3 3" transform="translate(-1,-3) rotate(90 12 12)"/></svg>
-  <p>Kütüphanem sadece dikey konumda kullanılır. Devam etmek için telefonunu döndür.</p>
-</div>
+
 <div id="app">
 
-  <!-- LIBRARY -->
-  <div id="view-library">
-    <div class="topbar">
-      <div>
-        <div class="brand">Kütüphan<em>em</em></div>
-        <div class="subcount" id="shelfCount">Kütüphane boş</div>
-      </div>
-      <div class="topbar-actions">
-        <button class="settings-btn" id="btnAllFavorites" aria-label="Tüm favoriler">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17.3 6.2 20l1.1-6.5L2.5 9l6.6-1L12 2l2.9 6 6.6 1-4.8 4.5L18 20z"/></svg>
-        </button>
-        <button class="settings-btn" id="btnSettings" aria-label="Ayarlar">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        </button>
-        <button class="scan-fab" id="btnNewBook" aria-label="Yeni kitap tara">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-        </button>
+  <aside id="sidebar" class="collapsed">
+    <div class="sidebar-head">
+      <div class="brand">
+        <span class="brand-mark">
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M2 3L7 8L2 13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        Terminal
       </div>
     </div>
-    <div id="shelf">
-      <div class="grid" id="grid"></div>
+    <button class="new-chat-btn" id="newChatBtn">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1V13M1 7H13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      Yeni sohbet
+    </button>
+    <div id="convList"></div>
+    <div class="sidebar-foot">
+      <button class="foot-btn" id="settingsBtnSide">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="2.2" stroke="currentColor" stroke-width="1.3"/><path d="M7 1.5V2.7M7 11.3V12.5M12.5 7H11.3M2.7 7H1.5M10.7 3.3L9.9 4.1M4.1 9.9L3.3 10.7M10.7 10.7L9.9 9.9M4.1 4.1L3.3 3.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Ayarlar
+      </button>
     </div>
-  </div>
+  </aside>
 
-  <!-- READER -->
-  <div id="view-reader">
-    <div class="reader-top">
-      <button class="icon-btn" id="btnBackLib" aria-label="Kütüphaneye dön">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+  <div id="sidebarScrim"></div>
+
+  <main id="main">
+    <div id="topbar">
+      <button id="menuToggle" aria-label="Sohbetler">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 5H16M2 9H16M2 13H16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <span>Sohbetler</span>
       </button>
-      <div class="reader-title edit-only">
-        <div class="t" id="readerTitle">—</div>
-        <div class="p" id="readerPage">—</div>
-      </div>
-      <button class="btn-done edit-only" id="btnReaderDone">Bitti</button>
-      <button class="icon-btn edit-only" id="btnBookMenu" aria-label="Kitap seçenekleri">
-        <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
+      <button id="composeBtn" aria-label="Yeni sohbet">
+        <svg width="17" height="17" viewBox="0 0 17 17" fill="none"><path d="M8.5 1V16M1 8.5H16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
+      <button class="model-chip" id="modelChip">
+        <span id="modelChipText">model seçilmedi</span>
+        <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M2 4L5.5 7.5L9 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="top-title" id="topTitle">Yeni sohbet</div>
+      <button id="settingsBtn" aria-label="Ayarlar">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="2.6" stroke="currentColor" stroke-width="1.4"/><path d="M9 1.8V3.4M9 14.6V16.2M16.2 9H14.6M3.4 9H1.8M13.7 4.3L12.6 5.4M5.4 12.6L4.3 13.7M13.7 13.7L12.6 12.6M5.4 5.4L4.3 4.3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
       </button>
     </div>
-    <div class="stage-wrap">
-      <div class="book-stage" id="bookStage">
-        <div class="leaf base" id="baseLeaf">
-          <div class="reader-media" id="readerMedia" style="display:none;">
-            <img id="readerImg" alt="">
-            <div id="highlightLayer"></div>
-          </div>
-          <div class="leaf-empty" id="leafEmpty">Sayfa yok</div>
+
+    <div id="scrollArea">
+      <div id="messages"></div>
+      <div class="error-banner hidden" id="errorBanner"></div>
+    </div>
+
+    <div id="inputDock">
+      <div id="inputInner">
+        <div id="attachedFiles"></div>
+        <div id="inputBar">
+          <button class="icon-btn" id="attachBtn" aria-label="Dosya ekle">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M11.5 3.5L4.8 10.2C3.7 11.3 3.7 13 4.8 14.1C5.9 15.2 7.6 15.2 8.7 14.1L14.8 8C15.6 7.2 15.6 5.9 14.8 5.1C14 4.3 12.7 4.3 11.9 5.1L6.3 10.7C6 11 6 11.4 6.3 11.7C6.6 12 7 12 7.3 11.7L12.2 6.8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <textarea id="textInput" placeholder="Bir mesaj yaz…" rows="1"></textarea>
+          <button id="sendBtn" aria-label="Gönder">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 13V3M8 3L3.5 7.5M8 3L12.5 7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
         </div>
-        <div class="tap-zone left" id="zoneLeft"></div>
-        <div class="tap-zone right" id="zoneRight"></div>
-        <div class="mark-overlay" id="markOverlay">
-          <div class="mark-hint">Bir bölgeyi sürükleyerek işaretle</div>
-          <button class="mark-cancel" id="btnMarkCancel">Vazgeç</button>
+        <div class="hint-row" id="hintRow">Enter ile gönder · Shift+Enter yeni satır</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<input type="file" id="fileInput" multiple style="display:none">
+<div id="dropOverlay">Dosyayı buraya bırak</div>
+
+<!-- Settings modal -->
+<div class="modal-overlay hidden" id="settingsOverlay">
+  <div class="modal">
+    <h2>Ayarlar</h2>
+    <p class="sub">Bilgiler yalnızca bu cihazda, tarayıcının local storage'ında saklanır.</p>
+
+    <div class="field">
+      <label for="apiKeyInput">NVIDIA API Key</label>
+      <div class="key-toggle">
+        <input type="password" id="apiKeyInput" placeholder="nvapi-xxxxxxxxxxxxxxxx">
+        <button class="icon-btn" id="toggleKeyVis" type="button" aria-label="Göster">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C1 8 3.5 3 8 3C12.5 3 15 8 15 8C15 8 12.5 13 8 13C3.5 13 1 8 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.3"/></svg>
+        </button>
+      </div>
+      <div class="hint">build.nvidia.com üzerinden alınan key. <a href="https://build.nvidia.com" target="_blank" rel="noopener">build.nvidia.com →</a></div>
+    </div>
+
+    <div class="field">
+      <label for="apiUrlInput">API adresi</label>
+      <input type="text" id="apiUrlInput" placeholder="https://integrate.api.nvidia.com/v1/chat/completions">
+      <div class="hint">"Load failed" / CORS hatası alırsan buraya kendi proxy adresini gir. README'deki proxy kurulum adımına bak.</div>
+    </div>
+
+    <div class="field">
+      <label for="modelInput">Model ID</label>
+      <div class="row">
+        <input type="text" id="modelInput" placeholder="örn. meta/llama-3.1-70b-instruct">
+        <button class="btn" id="addModelBtn" style="flex:0 0 auto; padding:9px 12px;">Ekle</button>
+      </div>
+      <div class="hint">Tam model ID'sini modelin build.nvidia.com sayfasındaki API sekmesinden kopyala.</div>
+      <div class="model-list" id="modelList"></div>
+    </div>
+
+    <div class="field chain-field">
+      <label style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+        <span>Zincir modu</span>
+        <span class="toggle-switch">
+          <input type="checkbox" id="chainEnabledInput">
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        </span>
+      </label>
+      <div class="hint" style="margin-top:-4px; margin-bottom:10px;">
+        Açıksa mesajın sırayla listedeki her modelden geçer — her model bir öncekinin
+        yanıtını inceleyip düzeltir/geliştirir. Listeyi en zayıf modelden en güçlüsüne
+        doğru sırala; son model nihai cevabı verir.
+      </div>
+
+      <div class="row" style="margin-bottom:8px;">
+        <select id="chainAddSelect">
+          <option value="">Zincire eklenecek model seç…</option>
+        </select>
+        <button class="btn" id="chainAddBtn" style="flex:0 0 auto; padding:9px 12px;">Ekle</button>
+      </div>
+      <div class="model-list" id="chainList"></div>
+      <div class="hint" id="chainEmptyHint">Henüz zincire model eklenmedi.</div>
+    </div>
+
+    <div class="field">
+      <label for="sysPromptInput">Sistem talimatı (opsiyonel)</label>
+      <textarea id="sysPromptInput" placeholder="Örn: Kısa ve teknik cevaplar ver."></textarea>
+    </div>
+
+    <div class="field">
+      <div class="row">
+        <div>
+          <label for="tempInput">Temperature</label>
+          <input type="text" id="tempInput" placeholder="0.7">
+        </div>
+        <div>
+          <label for="maxTokInput">Max tokens</label>
+          <input type="text" id="maxTokInput" placeholder="2048">
         </div>
       </div>
     </div>
-    <div class="reader-bottom">
-      <button class="mark-btn" id="btnMarkToggle">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-        İşaretle
-      </button>
-      <button class="add-page-btn edit-only" id="btnAddPage">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-        Sayfa ekle
-      </button>
-    </div>
-  </div>
 
-  <!-- SCAN (camera) -->
-  <div id="view-scan">
-    <div class="scan-top">
-      <button class="icon-btn" id="btnScanClose" aria-label="Kapat">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
-      </button>
-      <div class="count" id="scanCount">0 sayfa tarandı</div>
-      <div style="width:38px;"></div>
-    </div>
-    <div class="camera-wrap">
-      <video id="camVideo" autoplay playsinline muted></video>
-      <div class="guide-frame" id="guideFrame"></div>
-      <div class="cam-fallback" id="camFallback" style="display:none;">
-        <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7l1.5-3h5L16 7"/><circle cx="12" cy="13.5" r="3.4"/></svg>
-        <div>Kamera açılamadı. Galeriden seçebilirsin.</div>
-      </div>
-    </div>
-    <div class="scan-bottom">
-      <button class="side-btn" id="btnGallery" aria-label="Galeriden seç">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-      </button>
-      <button class="shutter" id="btnShutter" aria-label="Fotoğraf çek"></button>
-      <button class="side-btn" id="btnScanDone" aria-label="Bitir">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
-      </button>
-    </div>
-    <input type="file" id="galleryInput" accept="image/*" capture="environment" multiple>
-  </div>
+    <div class="modal-actions">
+      <button class="btn" id="closeSettingsBtn">Kapat</button>
+      <button class="btn primary" id="saveSettingsBtn">Kaydet</button>
 
-  <!-- CROP -->
-  <div id="view-crop">
-    <div class="crop-top">
-      <button id="btnCropCancel">Vazgeç</button>
-      <div class="crop-tools">
-        <button class="ai" id="btnCropAi" aria-label="Yapay zeka ile perspektifi düzelt">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8"/></svg>
-        </button>
-        <button id="btnCropFlip" aria-label="Aynala">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M17 7l3 3-3 3M7 7l-3 3 3 3"/></svg>
-        </button>
-        <button id="btnCropRotate" aria-label="Döndür">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>
-        </button>
-        <button id="btnCropReset" aria-label="Sıfırla">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/></svg>
-        </button>
-      </div>
-    </div>
-    <div class="crop-stage">
-      <div id="cropViewport">
-        <canvas id="cropImg"></canvas>
-        <div class="crop-dim">
-          <i id="dimTop"></i><i id="dimBottom"></i><i id="dimLeft"></i><i id="dimRight"></i>
-        </div>
-        <div class="crop-rect" id="cropRect">
-          <div class="third v1"></div><div class="third v2"></div>
-          <div class="third h1"></div><div class="third h2"></div>
-        </div>
-        <div class="handle" id="hTL"></div>
-        <div class="handle" id="hTR"></div>
-        <div class="handle" id="hBL"></div>
-        <div class="handle" id="hBR"></div>
-      </div>
-      <div class="hint">✨ ile çapraz çekimi düzleştir · pinch ile yakınlaştır · köşelerden kırp</div>
-    </div>
-    <div class="filters-row">
-      <button class="filter-chip on" data-filter="none">Orijinal</button>
-      <button class="filter-chip" data-filter="bw">Siyah-Beyaz Tarama</button>
-      <button class="filter-chip" data-filter="enhance">Netleştir</button>
-      <button class="filter-chip ai-chip" data-filter="ai" id="chipAiClean">✨ AI Temiz Tarama</button>
-    </div>
-    <div class="crop-bottom">
-      <button class="btn-outline" id="btnCropSkip">Kırpmadan kaydet</button>
-      <button class="btn-solid" id="btnCropSave">Sayfayı kaydet</button>
-    </div>
-  </div>
-
-</div>
-
-<!-- Bottom sheet (rename / new book / mark note / delete) -->
-<div class="sheet-mask" id="sheetMask">
-  <div class="sheet">
-    <h3 id="sheetTitle">Kitap adı</h3>
-    <input type="text" id="bookNameInput" placeholder="ör. Fizik Ders Notları">
-    <div class="sheet-actions" id="favRow" style="display:none;">
-      <button class="cancel" id="sheetOpenFavs" style="width:100%;">☆ Favoriler</button>
-    </div>
-    <div class="sheet-actions" id="pagesRow" style="display:none;">
-      <button class="cancel" id="sheetOpenPages" style="width:100%;">📄 Sayfaları Yönet</button>
-    </div>
-    <div class="sheet-actions">
-      <button class="cancel" id="sheetCancel">Vazgeç</button>
-      <button class="save" id="sheetSave">Kaydet</button>
-    </div>
-    <div class="sheet-actions" id="deleteRow" style="display:none;">
-      <button class="danger" id="sheetDelete" style="width:100%;">Kitabı sil</button>
     </div>
   </div>
 </div>
 
-<!-- Settings sheet (API key) -->
-<div class="sheet-mask" id="settingsMask">
-  <div class="sheet">
-    <h3>Ayarlar</h3>
-    <div class="key-row">
-      <input type="password" id="apiKeyInput" placeholder="AIza...">
-      <button id="btnToggleKey" type="button">👁</button>
+<!-- Rename modal -->
+<div class="modal-overlay hidden" id="renameOverlay">
+  <div class="modal" style="max-width:360px;">
+    <h2>Sohbeti yeniden adlandır</h2>
+    <div class="field" style="margin-top:14px;">
+      <input type="text" id="renameInput">
     </div>
-    <div class="settings-note">
-      Otomatik hizalama, AI temiz tarama ve yazı okuma özellikleri kendi Google
-      Gemini API anahtarınla çalışır. Anahtar sadece bu telefonun tarayıcısında
-      saklanır, hiçbir sunucuya gönderilmez — sadece analiz sırasında doğrudan
-      Google'ın Gemini API'sine gider. Anahtarını
-      <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>
-      üzerinden, Google hesabınla ücretsiz olarak alabilirsin.
-    </div>
-    <div class="sheet-actions">
-      <button class="cancel" id="settingsCancel">Vazgeç</button>
-      <button class="save" id="settingsSave">Kaydet</button>
+    <div class="modal-actions">
+      <button class="btn" id="renameCancelBtn">Vazgeç</button>
+      <button class="btn primary" id="renameSaveBtn">Kaydet</button>
     </div>
   </div>
 </div>
-
-<!-- Favorites sheet (per-book or global, title/list set dynamically) -->
-<div class="sheet-mask" id="favoritesMask">
-  <div class="sheet">
-    <h3 id="favTitle">Favoriler</h3>
-    <div class="fav-list" id="favList"></div>
-    <div class="sheet-actions">
-      <button class="cancel" id="favClose" style="width:100%;">Kapat</button>
-    </div>
-  </div>
-</div>
-
-<!-- Mark note sheet -->
-<div class="sheet-mask" id="markNoteMask">
-  <div class="sheet">
-    <h3>İşareti kaydet</h3>
-    <div class="key-row">
-      <input type="text" id="markNoteInput" placeholder="Not (opsiyonel)">
-      <button id="btnOcrRegion" type="button" aria-label="Yazıyı AI ile oku">✨</button>
-    </div>
-    <div class="sheet-actions">
-      <button class="cancel" id="markNoteCancel">Vazgeç</button>
-      <button class="save" id="markNoteSave">Kaydet</button>
-    </div>
-  </div>
-</div>
-
-<!-- Manage pages sheet (reorder / delete) -->
-<div class="sheet-mask" id="pagesManageMask">
-  <div class="sheet">
-    <h3>Sayfaları Yönet</h3>
-    <div class="fav-list" id="pagesManageList"></div>
-    <div class="sheet-actions">
-      <button class="cancel" id="pagesManageClose" style="width:100%;">Kapat</button>
-    </div>
-  </div>
-</div>
-
-<div class="toast" id="toast"></div>
 
 <script>
 (function(){
-"use strict";
+  "use strict";
 
-/* ============ INDEXEDDB ============ */
-const DB_NAME = "ciltli-db", DB_VER = 2;
-let db;
-function openDB(){
-  return new Promise((resolve,reject)=>{
-    const req = indexedDB.open(DB_NAME, DB_VER);
-    req.onupgradeneeded = (e)=>{
-      const d = e.target.result;
-      if(!d.objectStoreNames.contains("books")){
-        d.createObjectStore("books",{keyPath:"id"});
-      }
-      if(!d.objectStoreNames.contains("pages")){
-        const s = d.createObjectStore("pages",{keyPath:"id"});
-        s.createIndex("bookId","bookId",{unique:false});
-      }
-      if(!d.objectStoreNames.contains("highlights")){
-        const h = d.createObjectStore("highlights",{keyPath:"id"});
-        h.createIndex("bookId","bookId",{unique:false});
-      }
-    };
-    req.onsuccess = ()=>{ db = req.result; resolve(db); };
-    req.onerror = ()=> reject(req.error);
-  });
-}
-function tx(store, mode){ return db.transaction(store, mode).objectStore(store); }
-function idbGetAll(store){
-  return new Promise((res,rej)=>{
-    const r = tx(store,"readonly").getAll();
-    r.onsuccess = ()=>res(r.result); r.onerror=()=>rej(r.error);
-  });
-}
-function idbGetAllByIndex(store, index, key){
-  return new Promise((res,rej)=>{
-    const r = tx(store,"readonly").index(index).getAll(key);
-    r.onsuccess = ()=>res(r.result); r.onerror=()=>rej(r.error);
-  });
-}
-function idbPut(store, val){
-  return new Promise((res,rej)=>{
-    const r = tx(store,"readwrite").put(val);
-    r.onsuccess = ()=>res(val); r.onerror=()=>rej(r.error);
-  });
-}
-function idbDelete(store, key){
-  return new Promise((res,rej)=>{
-    const r = tx(store,"readwrite").delete(key);
-    r.onsuccess = ()=>res(); r.onerror=()=>rej(r.error);
-  });
-}
-function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+  // ---------------- Storage helpers ----------------
+  const LS_KEY = "nvterm_apikey";
+  const LS_MODELS = "nvterm_models";
+  const LS_CURMODEL = "nvterm_current_model";
+  const LS_CONVS = "nvterm_conversations";
+  const LS_ACTIVE = "nvterm_active";
+  const LS_SYSPROMPT = "nvterm_sysprompt";
+  const LS_TEMP = "nvterm_temp";
+  const LS_MAXTOK = "nvterm_maxtok";
 
-/* ============ STATE ============ */
-let books = [];           // {id,title,createdAt}
-let pagesByBook = {};      // bookId -> [{id,bookId,order,blob}]
-let highlightsByBook = {}; // bookId -> [{id,bookId,pageId,pageOrder,rx,ry,rw,rh,note,createdAt}]
-let currentBookId = null;
-let currentIndex = 0;
-let scanTargetBookId = null;
-let activeFilter = "none";
-let stream = null;
+  const DEFAULT_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
+  const LS_APIURL = "nvterm_apiurl";
+  const LS_CHAIN_ENABLED = "nvterm_chain_enabled";
+  const LS_CHAIN_MODELS = "nvterm_chain_models";
 
-const $ = (sel)=>document.querySelector(sel);
-const els = {
-  viewLibrary: $("#view-library"), viewReader: $("#view-reader"),
-  viewScan: $("#view-scan"), viewCrop: $("#view-crop"),
-  grid: $("#grid"), shelfCount: $("#shelfCount"),
-  readerTitle: $("#readerTitle"), readerPage: $("#readerPage"),
-  bookStage: $("#bookStage"), baseLeaf: $("#baseLeaf"),
-  markOverlay: $("#markOverlay"), btnMarkToggle: $("#btnMarkToggle"),
-  camVideo: $("#camVideo"), camFallback: $("#camFallback"), guideFrame: $("#guideFrame"),
-  scanCount: $("#scanCount"), galleryInput: $("#galleryInput"),
-  cropImg: $("#cropImg"), cropViewport: $("#cropViewport"), cropRect: $("#cropRect"),
-  sheetMask: $("#sheetMask"), sheetTitle: $("#sheetTitle"), bookNameInput: $("#bookNameInput"),
-  deleteRow: $("#deleteRow"), favRow: $("#favRow"), pagesRow: $("#pagesRow"), toast: $("#toast"),
-  settingsMask: $("#settingsMask"), apiKeyInput: $("#apiKeyInput"),
-  favoritesMask: $("#favoritesMask"), favTitle: $("#favTitle"), favList: $("#favList"),
-  markNoteMask: $("#markNoteMask"), markNoteInput: $("#markNoteInput"),
-  pagesManageMask: $("#pagesManageMask"), pagesManageList: $("#pagesManageList")
-};
-
-function toast(msg){
-  els.toast.textContent = msg;
-  els.toast.classList.add("show");
-  clearTimeout(toast._t);
-  toast._t = setTimeout(()=>els.toast.classList.remove("show"), 1800);
-}
-
-/* ============ API KEY (localStorage, device-only) ============ */
-const API_KEY_LS = "kutuphanem_api_key";
-function getApiKey(){ try{ return localStorage.getItem(API_KEY_LS) || ""; }catch(e){ return ""; } }
-function setApiKey(v){ try{ if(v) localStorage.setItem(API_KEY_LS, v); else localStorage.removeItem(API_KEY_LS); }catch(e){} }
-
-/* ---- shared Gemini API caller (used by all three AI features) ---- */
-const AI_MODEL = "gemini-3.5-flash";
-function geminiEndpoint(){ return `https://generativelanguage.googleapis.com/v1beta/models/${AI_MODEL}:generateContent`; }
-async function callGemini(promptText, base64Image){
-  const key = getApiKey();
-  if(!key) throw new Error("NO_KEY");
-  const parts = [];
-  if(base64Image) parts.push({ inline_data: { mime_type:"image/jpeg", data: base64Image } });
-  parts.push({ text: promptText });
-  const resp = await fetch(geminiEndpoint(), {
-    method: "POST",
-    headers: { "content-type":"application/json", "x-goog-api-key": key },
-    body: JSON.stringify({ contents:[{ parts }] })
-  });
-  if(!resp.ok){
-    if(resp.status === 400 || resp.status === 403) throw new Error("API anahtarı geçersiz görünüyor");
-    if(resp.status === 429) throw new Error("Çok fazla istek, biraz sonra tekrar dene");
-    throw new Error("İstek başarısız oldu (" + resp.status + ")");
+  function loadJSON(key, fallback){
+    try{
+      const v = localStorage.getItem(key);
+      return v ? JSON.parse(v) : fallback;
+    }catch(e){ return fallback; }
   }
-  const data = await resp.json();
-  const cand = (data.candidates && data.candidates[0]) || null;
-  const text = cand && cand.content && cand.content.parts ? cand.content.parts.map(p=>p.text||"").join("") : "";
-  return text.trim();
-}
-function stripJsonFence(text){ return text.replace(/^```json\s*|^```\s*|```\s*$/g, "").trim(); }
+  function saveJSON(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
 
-$("#btnSettings").addEventListener("click", ()=>{
-  els.apiKeyInput.value = getApiKey();
-  els.apiKeyInput.type = "password";
-  els.settingsMask.classList.add("active");
-});
-$("#settingsMask").addEventListener("click",(e)=>{ if(e.target===els.settingsMask) els.settingsMask.classList.remove("active"); });
-$("#settingsCancel").addEventListener("click", ()=> els.settingsMask.classList.remove("active"));
-$("#settingsSave").addEventListener("click", ()=>{
-  setApiKey(els.apiKeyInput.value.trim());
-  els.settingsMask.classList.remove("active");
-  toast("Ayarlar kaydedildi");
-});
-$("#btnToggleKey").addEventListener("click", ()=>{
-  els.apiKeyInput.type = els.apiKeyInput.type === "password" ? "text" : "password";
-});
-
-/* ============ VIEW SWITCH ============ */
-function showView(name){
-  els.viewLibrary.style.display = name==="library" ? "flex" : "none";
-  els.viewReader.classList.toggle("active", name==="reader");
-  els.viewScan.classList.toggle("active", name==="scan");
-  els.viewCrop.classList.toggle("active", name==="crop");
-  if(name!=="scan") stopCamera();
-}
-
-/* ============ LOAD & RENDER LIBRARY ============ */
-async function loadLibrary(){
-  books = await idbGetAll("books");
-  books.sort((a,b)=>b.createdAt-a.createdAt);
-  pagesByBook = {};
-  for(const b of books){
-    const pages = await idbGetAllByIndex("pages","bookId",b.id);
-    pages.sort((a,b2)=>a.order-b2.order);
-    pagesByBook[b.id] = pages;
-    try{ highlightsByBook[b.id] = await idbGetAllByIndex("highlights","bookId",b.id); }
-    catch(e){ highlightsByBook[b.id] = highlightsByBook[b.id] || []; }
-  }
-  renderLibrary();
-}
-
-let libraryCoverUrls = [];
-function renderLibrary(){
-  libraryCoverUrls.forEach(u=>URL.revokeObjectURL(u));
-  libraryCoverUrls = [];
-  els.grid.innerHTML = "";
-  if(books.length === 0){
-    els.shelfCount.textContent = "Kütüphane boş";
-    els.grid.innerHTML = "";
-    const empty = document.createElement("div");
-    empty.className = "empty-state";
-    empty.style.gridColumn = "1/-1";
-    empty.innerHTML = `
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M3 5.5C3 4.7 3.7 4 5 4c3 0 5.5 1 7 2.5V19C10.5 17.5 8 16.5 5 16.5c-1.3 0-2 .7-2 1.5V5.5Z"/><path d="M21 5.5c0-.8-.7-1.5-2-1.5-3 0-5.5 1-7 2.5V19c1.5-1.5 4-2.5 7-2.5 1.3 0 2 .7 2 1.5V5.5Z"/></svg>
-      <h2>Raf henüz boş</h2>
-      <p>İlk kitabını tara: sayfaları fotoğrafla, kırp, kütüphanene ekle. Her şey telefonunda kalır.</p>
-      <button class="cta-btn" id="btnEmptyScan">İlk kitabı tara</button>`;
-    els.grid.parentElement.appendChild(empty);
-    empty.querySelector("#btnEmptyScan").addEventListener("click", startNewBookFlow);
-    return;
-  }
-  const stale = els.grid.parentElement.querySelector(".empty-state");
-  if(stale) stale.remove();
-  els.shelfCount.textContent = books.length + (books.length===1 ? " kitap" : " kitap");
-  for(const b of books){
-    const pages = pagesByBook[b.id] || [];
-    const card = document.createElement("div");
-    card.className = "book-card";
-    card.setAttribute("role", "button");
-    card.tabIndex = 0;
-    const coverUrl = pages[0] ? URL.createObjectURL(pages[0].blob) : null;
-    if(coverUrl) libraryCoverUrls.push(coverUrl);
-    card.innerHTML = `
-      <div class="spine">
-        <div class="spine-edge"></div>
-        ${coverUrl ? `<img src="${coverUrl}" alt="">` : `<div class="no-cover">${(b.title||"?").charAt(0).toUpperCase()}</div>`}
-        <button class="edit-fab" aria-label="Kitabı düzenle">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-        </button>
-      </div>
-      <div class="book-title">${escapeHtml(b.title || "Adsız kitap")}</div>
-      <div class="book-meta">${pages.length} sayfa</div>`;
-    card.addEventListener("click", ()=>openBook(b.id, "read"));
-    card.querySelector(".edit-fab").addEventListener("click", (e)=>{
-      e.stopPropagation();
-      openBook(b.id, "edit");
-    });
-    els.grid.appendChild(card);
-  }
-}
-function escapeHtml(s){ const d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
-
-/* ============ READER ============ */
-let readerMode = "read"; // "read" (minimal, default) | "edit" (full controls)
-function applyReaderModeUi(){
-  els.viewReader.classList.toggle("mode-edit", readerMode === "edit");
-  els.viewReader.classList.toggle("mode-read", readerMode === "read");
-}
-$("#btnReaderDone").addEventListener("click", ()=>{
-  readerMode = "read";
-  applyReaderModeUi();
-});
-
-async function openBook(bookId, mode){
-  currentBookId = bookId;
-  currentIndex = 0;
-  readerMode = mode === "edit" ? "edit" : "read";
-  applyReaderModeUi();
-  const book = books.find(b=>b.id===bookId);
-  els.readerTitle.textContent = book ? book.title : "Kitap";
-  showView("reader");
-  if(!highlightsByBook[bookId]){
-    try{ highlightsByBook[bookId] = await idbGetAllByIndex("highlights","bookId",bookId); }
-    catch(e){ highlightsByBook[bookId] = []; }
-  }
-  renderPage();
-}
-
-function currentPages(){ return pagesByBook[currentBookId] || []; }
-
-let lastBaseUrl = null;
-function setBaseLeaf(url){
-  if(lastBaseUrl) URL.revokeObjectURL(lastBaseUrl);
-  lastBaseUrl = url;
-}
-
-/* ---- zoom/pan state for the resting (base) page ---- */
-let readerScale = 1, readerFit = 1, readerNatW = 0, readerNatH = 0;
-let readerPos = {left:0, top:0};
-const readerImgEl = ()=> document.getElementById("readerImg");
-const readerMediaEl = ()=> document.getElementById("readerMedia");
-const leafEmptyEl = ()=> document.getElementById("leafEmpty");
-
-function applyReaderTransform(){
-  readerMediaEl().style.transform = `translate(${readerPos.left}px, ${readerPos.top}px) scale(${readerFit*readerScale})`;
-}
-function clampReaderPos(){
-  const vpW = els.baseLeaf.clientWidth, vpH = els.baseLeaf.clientHeight;
-  const w = readerNatW*readerFit*readerScale, h = readerNatH*readerFit*readerScale;
-  readerPos.left = (w <= vpW) ? (vpW-w)/2 : Math.min(0, Math.max(vpW-w, readerPos.left));
-  readerPos.top  = (h <= vpH) ? (vpH-h)/2 : Math.min(0, Math.max(vpH-h, readerPos.top));
-}
-function resetReaderView(){
-  const vpW = els.baseLeaf.clientWidth, vpH = els.baseLeaf.clientHeight;
-  if(!readerNatW || !readerNatH || !vpW || !vpH) return;
-  readerFit = Math.min(vpW/readerNatW, vpH/readerNatH);
-  readerScale = 1;
-  const w = readerNatW*readerFit, h = readerNatH*readerFit;
-  readerPos.left = (vpW-w)/2; readerPos.top = (vpH-h)/2;
-  applyReaderTransform();
-}
-function renderHighlightOverlays(pageOrder){
-  const layer = document.getElementById("highlightLayer");
-  if(!layer) return;
-  layer.innerHTML = "";
-  const pages = currentPages();
-  const page = pages[pageOrder];
-  if(!page) return;
-  const list = (highlightsByBook[currentBookId]||[]).filter(h=>h.pageId===page.id);
-  for(const h of list){
-    const d = document.createElement("div");
-    d.className = "hl-rect";
-    d.style.left = (h.rx*100)+"%"; d.style.top = (h.ry*100)+"%";
-    d.style.width = (h.rw*100)+"%"; d.style.height = (h.rh*100)+"%";
-    layer.appendChild(d);
-  }
-}
-function mountBaseMedia(url, pageOrder){
-  setBaseLeaf(url);
-  leafEmptyEl().style.display = "none";
-  readerMediaEl().style.display = "block";
-  const img = readerImgEl();
-  img.onload = ()=>{
-    readerNatW = img.naturalWidth; readerNatH = img.naturalHeight;
-    readerMediaEl().style.width = readerNatW+"px";
-    readerMediaEl().style.height = readerNatH+"px";
-    resetReaderView();
-    renderHighlightOverlays(pageOrder);
+  let state = {
+    apiKey: localStorage.getItem(LS_KEY) || "",
+    apiUrl: localStorage.getItem(LS_APIURL) || DEFAULT_API_URL,
+    models: loadJSON(LS_MODELS, []),
+    currentModel: localStorage.getItem(LS_CURMODEL) || "",
+    sysPrompt: localStorage.getItem(LS_SYSPROMPT) || "",
+    temperature: localStorage.getItem(LS_TEMP) || "0.7",
+    maxTokens: localStorage.getItem(LS_MAXTOK) || "2048",
+    conversations: loadJSON(LS_CONVS, {}),   // id -> {id, title, messages:[], updated}
+    activeId: localStorage.getItem(LS_ACTIVE) || null,
+    chainEnabled: localStorage.getItem(LS_CHAIN_ENABLED) === "1",
+    chainModels: loadJSON(LS_CHAIN_MODELS, []), // ordered array of model ids, weakest -> strongest
   };
-  img.src = url;
-}
 
-function renderPage(){
-  const pages = currentPages();
-  const book = books.find(b=>b.id===currentBookId);
-  els.readerTitle.textContent = book ? book.title : "";
-  if(pages.length === 0){
-    readerMediaEl().style.display = "none";
-    leafEmptyEl().style.display = "flex";
-    leafEmptyEl().textContent = "Bu kitapta henüz sayfa yok";
-    els.readerPage.textContent = "0 / 0";
-    return;
-  }
-  currentIndex = Math.max(0, Math.min(currentIndex, pages.length-1));
-  const url = URL.createObjectURL(pages[currentIndex].blob);
-  mountBaseMedia(url, currentIndex);
-  els.readerPage.textContent = (currentIndex+1) + " / " + pages.length;
-}
+  let isStreaming = false;
+  let abortController = null;
+  let pendingFiles = []; // {name, kind:'text'|'image', content}
 
-function flipTo(direction){
-  if(readerScale > 1.02 || markMode) return;
-  const pages = currentPages();
-  if(pages.length === 0) return;
-  const targetIndex = currentIndex + direction;
-  if(targetIndex < 0 || targetIndex >= pages.length) return;
-  if(document.querySelector(".flip")) return; // animation in progress
+  // ---------------- DOM refs ----------------
+  const $ = (id) => document.getElementById(id);
+  const sidebar = $("sidebar");
+  const sidebarScrim = $("sidebarScrim");
+  const convList = $("convList");
+  const scrollArea = $("scrollArea");
+  const messagesEl = $("messages");
+  const topTitle = $("topTitle");
+  const modelChip = $("modelChip");
+  const textInput = $("textInput");
+  const sendBtn = $("sendBtn");
+  const attachBtn = $("attachBtn");
+  const fileInput = $("fileInput");
+  const attachedFilesEl = $("attachedFiles");
+  const errorBanner = $("errorBanner");
+  const dropOverlay = $("dropOverlay");
 
-  const flip = document.createElement("div");
-  flip.className = "flip";
-  const stage = els.bookStage;
-
-  if(direction === 1){
-    const curUrl = URL.createObjectURL(pages[currentIndex].blob);
-    const nextUrl = URL.createObjectURL(pages[targetIndex].blob);
-    flip.innerHTML = `
-      <div class="face front"><img src="${curUrl}"></div>
-      <div class="face back"><img src="${nextUrl}"></div>
-      <div class="shade"></div>`;
-    flip.style.transform = "rotateY(0deg)";
-    stage.appendChild(flip);
-    mountBaseMedia(nextUrl, targetIndex); // ready underneath
-    requestAnimationFrame(()=>{
-      flip.style.transition = "transform 480ms cubic-bezier(.4,.1,.2,1)";
-      flip.querySelector(".shade").style.transition = "opacity 480ms";
-      flip.style.transform = "rotateY(-180deg)";
-      flip.querySelector(".shade").style.opacity = "0.9";
-    });
-    flip.addEventListener("transitionend", function done(e){
-      if(e.propertyName !== "transform") return;
-      flip.removeEventListener("transitionend", done);
-      flip.remove();
-      URL.revokeObjectURL(curUrl);
-      currentIndex = targetIndex;
-      els.readerPage.textContent = (currentIndex+1) + " / " + pages.length;
-    });
-  } else {
-    const prevUrl = URL.createObjectURL(pages[targetIndex].blob);
-    const curUrl = URL.createObjectURL(pages[currentIndex].blob);
-    flip.innerHTML = `
-      <div class="face front"><img src="${prevUrl}"></div>
-      <div class="face back"><img src="${curUrl}"></div>
-      <div class="shade"></div>`;
-    flip.style.transform = "rotateY(-180deg)";
-    flip.querySelector(".shade").style.opacity = "0.9";
-    stage.appendChild(flip);
-    requestAnimationFrame(()=>{
-      flip.style.transition = "transform 480ms cubic-bezier(.4,.1,.2,1)";
-      flip.querySelector(".shade").style.transition = "opacity 480ms";
-      flip.style.transform = "rotateY(0deg)";
-      flip.querySelector(".shade").style.opacity = "0";
-    });
-    flip.addEventListener("transitionend", function done(e){
-      if(e.propertyName !== "transform") return;
-      flip.removeEventListener("transitionend", done);
-      flip.remove();
-      currentIndex = targetIndex;
-      mountBaseMedia(prevUrl, targetIndex);
-      URL.revokeObjectURL(curUrl);
-      els.readerPage.textContent = (currentIndex+1) + " / " + pages.length;
-    });
-  }
-}
-
-$("#btnBackLib").addEventListener("click", ()=>{ showView("library"); loadLibrary(); });
-
-/* ---- unified pointer gestures: pinch-zoom, pan, swipe-to-flip, double-tap-zoom ---- */
-const readerPointers = new Map();
-let readerPanStart = null, readerPinchStartDist = null, readerPinchStartScale = 1, readerPinchStartPos = null, readerPinchFocal = null;
-let swipeStartX = null, swipeStartY = null, swipeStartTime = 0;
-let lastTapTime = 0, lastTapPos = null;
-
-function toggleDoubleTapZoom(clientX, clientY){
-  const leafRect = els.baseLeaf.getBoundingClientRect();
-  const focal = {x: clientX-leafRect.left, y: clientY-leafRect.top};
-  if(readerScale > 1.02){
-    resetReaderView();
-  } else {
-    const newScale = 2.4;
-    const oldW = readerNatW*readerFit, oldH = readerNatH*readerFit;
-    const relX = (focal.x - readerPos.left)/oldW, relY = (focal.y - readerPos.top)/oldH;
-    const newW = readerNatW*readerFit*newScale, newH = readerNatH*readerFit*newScale;
-    readerPos.left = focal.x - relX*newW;
-    readerPos.top = focal.y - relY*newH;
-    readerScale = newScale;
-    clampReaderPos();
-    applyReaderTransform();
-  }
-}
-
-els.bookStage.addEventListener("pointerdown",(e)=>{
-  if(markMode || document.querySelector(".flip")) return;
-  els.bookStage.setPointerCapture(e.pointerId);
-  readerPointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
-  if(readerPointers.size === 1){
-    swipeStartX = e.clientX; swipeStartY = e.clientY; swipeStartTime = Date.now();
-    if(readerScale > 1.02){
-      readerPanStart = {x:e.clientX, y:e.clientY, left:readerPos.left, top:readerPos.top};
+  // ---------------- Init conversation ----------------
+  function ensureConversation(){
+    if(!state.activeId || !state.conversations[state.activeId]){
+      const id = "c_" + Date.now();
+      state.conversations[id] = { id, title: "Yeni sohbet", messages: [], updated: Date.now() };
+      state.activeId = id;
+      persistConvs();
     }
-  } else if(readerPointers.size === 2){
-    swipeStartX = null;
-    const pts = [...readerPointers.values()];
-    readerPinchStartDist = Math.hypot(pts[0].x-pts[1].x, pts[0].y-pts[1].y);
-    readerPinchStartScale = readerScale;
-    readerPinchStartPos = {...readerPos};
-    const leafRect = els.baseLeaf.getBoundingClientRect();
-    readerPinchFocal = {x:(pts[0].x+pts[1].x)/2 - leafRect.left, y:(pts[0].y+pts[1].y)/2 - leafRect.top};
   }
-});
-els.bookStage.addEventListener("pointermove",(e)=>{
-  if(markMode || !readerPointers.has(e.pointerId)) return;
-  readerPointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
-  if(readerPointers.size === 1 && readerPanStart){
-    readerPos.left = readerPanStart.left + (e.clientX - readerPanStart.x);
-    readerPos.top = readerPanStart.top + (e.clientY - readerPanStart.y);
-    clampReaderPos();
-    applyReaderTransform();
-  } else if(readerPointers.size === 2 && readerPinchStartDist){
-    const pts = [...readerPointers.values()];
-    const d = Math.hypot(pts[0].x-pts[1].x, pts[0].y-pts[1].y);
-    const newScale = Math.max(1, Math.min(4, readerPinchStartScale*(d/readerPinchStartDist)));
-    const oldW = readerNatW*readerFit*readerPinchStartScale, oldH = readerNatH*readerFit*readerPinchStartScale;
-    const relX = (readerPinchFocal.x-readerPinchStartPos.left)/oldW, relY = (readerPinchFocal.y-readerPinchStartPos.top)/oldH;
-    const newW = readerNatW*readerFit*newScale, newH = readerNatH*readerFit*newScale;
-    readerPos.left = readerPinchFocal.x - relX*newW;
-    readerPos.top = readerPinchFocal.y - relY*newH;
-    readerScale = newScale;
-    clampReaderPos();
-    applyReaderTransform();
+  ensureConversation();
+
+  function persistConvs(){
+    saveJSON(LS_CONVS, state.conversations);
+    localStorage.setItem(LS_ACTIVE, state.activeId);
   }
-});
-function endReaderPointer(e){
-  if(markMode) return;
-  const wasSingle = readerPointers.size === 1;
-  readerPointers.delete(e.pointerId);
-  readerPinchStartDist = null;
-  if(readerPointers.size === 1){
-    const [p] = readerPointers.values();
-    readerPanStart = {x:p.x, y:p.y, left:readerPos.left, top:readerPos.top};
-  } else {
-    readerPanStart = null;
+
+  function currentConv(){ return state.conversations[state.activeId]; }
+
+  // ---------------- Sidebar rendering ----------------
+  function dateGroupLabel(ts){
+    const now = new Date();
+    const d = new Date(ts);
+    const startOfDay = (dt)=> new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).getTime();
+    const diffDays = Math.round((startOfDay(now) - startOfDay(d)) / 86400000);
+    if(diffDays <= 0) return "Bugün";
+    if(diffDays === 1) return "Dün";
+    if(diffDays <= 7) return "Son 7 gün";
+    if(diffDays <= 30) return "Son 30 gün";
+    return "Daha eski";
   }
-  if(wasSingle && readerPointers.size === 0 && swipeStartX !== null){
-    const dx = e.clientX - swipeStartX, dy = e.clientY - swipeStartY;
-    const dt = Date.now() - swipeStartTime;
-    if(readerScale <= 1.02 && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) && dt < 600){
-      flipTo(dx < 0 ? 1 : -1);
-    } else if(Math.abs(dx) < 12 && Math.abs(dy) < 12){
-      const now = Date.now();
-      const isDouble = lastTapPos && (now-lastTapTime) < 320 && Math.hypot(e.clientX-lastTapPos.x, e.clientY-lastTapPos.y) < 40;
-      lastTapTime = now; lastTapPos = {x:e.clientX, y:e.clientY};
-      if(isDouble){
-        toggleDoubleTapZoom(e.clientX, e.clientY);
-      } else if(readerScale <= 1.02){
-        const stageRect = els.bookStage.getBoundingClientRect();
-        const relX = (e.clientX - stageRect.left)/stageRect.width;
-        if(relX < 0.28) flipTo(-1);
-        else if(relX > 0.72) flipTo(1);
+
+  function renderSidebar(){
+    convList.innerHTML = "";
+    const convs = Object.values(state.conversations).sort((a,b)=> b.updated - a.updated);
+    let lastGroup = null;
+    for(const c of convs){
+      const group = dateGroupLabel(c.updated);
+      if(group !== lastGroup){
+        const label = document.createElement("div");
+        label.className = "conv-group-label";
+        label.textContent = group;
+        convList.appendChild(label);
+        lastGroup = group;
       }
+      const row = document.createElement("div");
+      row.className = "conv-item" + (c.id === state.activeId ? " active" : "");
+      row.innerHTML = `<span class="title"></span><button class="conv-del" title="Sil">✕</button>`;
+      row.querySelector(".title").textContent = c.title || "Yeni sohbet";
+      row.addEventListener("click", (e)=>{
+        if(e.target.closest(".conv-del")) return;
+        state.activeId = c.id;
+        persistConvs();
+        renderSidebar();
+        renderMessages();
+        closeSidebarMobile();
+      });
+      row.addEventListener("dblclick", (e)=>{
+        if(e.target.closest(".conv-del")) return;
+        openRename(c.id);
+      });
+      row.querySelector(".conv-del").addEventListener("click", (e)=>{
+        e.stopPropagation();
+        deleteConversation(c.id);
+      });
+      convList.appendChild(row);
     }
   }
-  swipeStartX = null;
-}
-els.bookStage.addEventListener("pointerup", endReaderPointer);
-els.bookStage.addEventListener("pointercancel", endReaderPointer);
 
-/* ============ HIGHLIGHTS / FAVORITES ============ */
-let markMode = false, markDragStart = null, markRectEl = null, pendingMarkRect = null;
-
-$("#btnMarkToggle").addEventListener("click", ()=>{
-  if(currentPages().length === 0){ toast("Önce bir sayfa ekle"); return; }
-  if(readerScale > 1.02) resetReaderView();
-  markMode = true;
-  els.btnMarkToggle.classList.add("on");
-  els.markOverlay.classList.add("active");
-});
-function exitMarkMode(){
-  markMode = false;
-  els.btnMarkToggle.classList.remove("on");
-  els.markOverlay.classList.remove("active");
-  if(markRectEl){ markRectEl.remove(); markRectEl = null; }
-  markDragStart = null;
-}
-$("#btnMarkCancel").addEventListener("click", exitMarkMode);
-els.markOverlay.addEventListener("pointerdown",(e)=>{
-  if(e.target.closest("#btnMarkCancel")) return;
-  e.preventDefault();
-  els.markOverlay.setPointerCapture(e.pointerId);
-  const rect = els.markOverlay.getBoundingClientRect();
-  markDragStart = {x:e.clientX-rect.left, y:e.clientY-rect.top, pointerId:e.pointerId};
-  markRectEl = document.createElement("div");
-  markRectEl.className = "mark-rect";
-  els.markOverlay.appendChild(markRectEl);
-});
-els.markOverlay.addEventListener("pointermove",(e)=>{
-  if(!markDragStart || e.pointerId !== markDragStart.pointerId || !markRectEl) return;
-  const rect = els.markOverlay.getBoundingClientRect();
-  const x = e.clientX-rect.left, y = e.clientY-rect.top;
-  const left = Math.min(x, markDragStart.x), top = Math.min(y, markDragStart.y);
-  const w = Math.abs(x-markDragStart.x), h = Math.abs(y-markDragStart.y);
-  markRectEl.style.left = left+"px"; markRectEl.style.top = top+"px";
-  markRectEl.style.width = w+"px"; markRectEl.style.height = h+"px";
-});
-els.markOverlay.addEventListener("pointerup",(e)=>{
-  if(!markDragStart || e.pointerId !== markDragStart.pointerId) return;
-  const w = markRectEl ? parseFloat(markRectEl.style.width)||0 : 0;
-  const h = markRectEl ? parseFloat(markRectEl.style.height)||0 : 0;
-  if(w < 24 || h < 24){
-    if(markRectEl){ markRectEl.remove(); markRectEl = null; }
-    markDragStart = null;
-    toast("Alan çok küçük, tekrar dene");
-    return;
+  function deleteConversation(id){
+    delete state.conversations[id];
+    if(state.activeId === id){
+      const rest = Object.keys(state.conversations);
+      state.activeId = rest.length ? rest[0] : null;
+      ensureConversation();
+    }
+    persistConvs();
+    renderSidebar();
+    renderMessages();
   }
-  const left = parseFloat(markRectEl.style.left), top = parseFloat(markRectEl.style.top);
-  markDragStart = null;
-  // compute image-relative fraction now, while geometry is still on screen —
-  // reused by both the OCR button and the save handler below.
-  const mediaRect = readerMediaEl().getBoundingClientRect();
-  const overlayRect = els.markOverlay.getBoundingClientRect();
-  const absLeft = overlayRect.left + left, absTop = overlayRect.top + top;
-  let rx = (absLeft - mediaRect.left) / mediaRect.width;
-  let ry = (absTop - mediaRect.top) / mediaRect.height;
-  let rw = w / mediaRect.width;
-  let rh = h / mediaRect.height;
-  rx = Math.max(0, Math.min(1, rx)); ry = Math.max(0, Math.min(1, ry));
-  rw = Math.max(0.01, Math.min(1-rx, rw)); rh = Math.max(0.01, Math.min(1-ry, rh));
-  pendingMarkRect = {rx, ry, rw, rh};
-  els.markNoteInput.value = "";
-  els.markNoteMask.classList.add("active");
-});
-$("#markNoteCancel").addEventListener("click", ()=>{ els.markNoteMask.classList.remove("active"); exitMarkMode(); });
-$("#markNoteMask").addEventListener("click",(e)=>{ if(e.target===els.markNoteMask){ els.markNoteMask.classList.remove("active"); exitMarkMode(); } });
 
-/* ---- AI: read the marked region's text (OCR-style transcription) ---- */
-async function base64FromBlobRegion(blob, rx, ry, rw, rh, maxDim){
-  const bmp = await createImageBitmap(blob);
-  const sx = rx*bmp.width, sy = ry*bmp.height, sw = rw*bmp.width, sh = rh*bmp.height;
-  const scale = Math.min(1, maxDim/Math.max(sw,sh));
-  const c = document.createElement("canvas");
-  c.width = Math.max(1, Math.round(sw*scale)); c.height = Math.max(1, Math.round(sh*scale));
-  c.getContext("2d").drawImage(bmp, sx, sy, sw, sh, 0, 0, c.width, c.height);
-  try{ bmp.close(); }catch(e){}
-  return c.toDataURL("image/jpeg", 0.85).split(",")[1];
-}
-async function callAiTextRead(b64){
-  return callGemini("Transcribe exactly the text visible in this image crop. Respond with ONLY the transcribed text, no preamble, no quotes, no commentary. If there is no readable text, respond with an empty string.", b64);
-}
-$("#btnOcrRegion").addEventListener("click", async ()=>{
-  if(!pendingMarkRect || !currentBookId) return;
-  const key = getApiKey();
-  if(!key){
-    toast("Önce ayarlardan API anahtarı ekle");
-    els.markNoteMask.classList.remove("active");
-    els.apiKeyInput.value = "";
-    els.settingsMask.classList.add("active");
-    return;
+  function newConversation(){
+    const id = "c_" + Date.now();
+    state.conversations[id] = { id, title: "Yeni sohbet", messages: [], updated: Date.now() };
+    state.activeId = id;
+    persistConvs();
+    renderSidebar();
+    renderMessages();
+    closeSidebarMobile();
+    textInput.focus();
   }
-  const page = currentPages()[currentIndex];
-  if(!page) return;
-  const btn = $("#btnOcrRegion");
-  btn.classList.add("loading");
-  try{
-    const b64 = await base64FromBlobRegion(page.blob, pendingMarkRect.rx, pendingMarkRect.ry, pendingMarkRect.rw, pendingMarkRect.rh, 900);
-    const text = await callAiTextRead(b64);
-    els.markNoteInput.value = text || "(okunabilir yazı bulunamadı)";
-  }catch(err){
-    toast(err.message || "Yazı okunamadı");
-  }finally{
-    btn.classList.remove("loading");
+
+  // rename modal
+  let renameTargetId = null;
+  function openRename(id){
+    renameTargetId = id;
+    $("renameInput").value = state.conversations[id].title || "";
+    $("renameOverlay").classList.remove("hidden");
+    setTimeout(()=> $("renameInput").focus(), 30);
   }
-});
+  $("renameCancelBtn").addEventListener("click", ()=> $("renameOverlay").classList.add("hidden"));
+  $("renameSaveBtn").addEventListener("click", ()=>{
+    if(renameTargetId && state.conversations[renameTargetId]){
+      state.conversations[renameTargetId].title = $("renameInput").value.trim() || "Yeni sohbet";
+      persistConvs();
+      renderSidebar();
+      updateTopTitle();
+    }
+    $("renameOverlay").classList.add("hidden");
+  });
 
-$("#markNoteSave").addEventListener("click", async ()=>{
-  if(!pendingMarkRect || !currentBookId){ els.markNoteMask.classList.remove("active"); exitMarkMode(); return; }
-  const pages = currentPages();
-  const page = pages[currentIndex];
-  if(!page){ els.markNoteMask.classList.remove("active"); exitMarkMode(); return; }
-  const {rx, ry, rw, rh} = pendingMarkRect;
-  const hl = {id: uid(), bookId: currentBookId, pageId: page.id, pageOrder: currentIndex, rx, ry, rw, rh, note: els.markNoteInput.value.trim(), createdAt: Date.now()};
-  await idbPut("highlights", hl);
-  if(!highlightsByBook[currentBookId]) highlightsByBook[currentBookId] = [];
-  highlightsByBook[currentBookId].push(hl);
-  els.markNoteMask.classList.remove("active");
-  exitMarkMode();
-  renderHighlightOverlays(currentIndex);
-  toast("İşaret kaydedildi");
-});
-
-let favThumbUrls = [];
-function makeFavThumb(blob, h){
-  return createImageBitmap(blob).then((bmp)=>{
-    const sx = h.rx*bmp.width, sy = h.ry*bmp.height, sw = h.rw*bmp.width, sh = h.rh*bmp.height;
-    const c = document.createElement("canvas");
-    c.width = 120; c.height = 156;
-    const ctx = c.getContext("2d");
-    ctx.fillStyle = "#ddd3bd"; ctx.fillRect(0,0,c.width,c.height);
-    const scale = Math.min(c.width/sw, c.height/sh);
-    const dw = sw*scale, dh = sh*scale;
-    ctx.drawImage(bmp, sx, sy, sw, sh, (c.width-dw)/2, (c.height-dh)/2, dw, dh);
-    try{ bmp.close(); }catch(err){}
-    return new Promise((res)=> c.toBlob((b)=>res(b?URL.createObjectURL(b):""), "image/jpeg", 0.8));
-  }).catch(()=>"");
-}
-
-let currentFavScope = null; // bookId string = that book's favorites, null = all books
-function openFavorites(scopeBookId){
-  currentFavScope = scopeBookId || null;
-  favThumbUrls.forEach(u=>URL.revokeObjectURL(u));
-  favThumbUrls = [];
-  let list;
-  if(currentFavScope){
-    list = (highlightsByBook[currentFavScope]||[]).slice();
-    list.sort((a,b)=>{
-      const pa = (pagesByBook[currentFavScope]||[]).findIndex(p=>p.id===a.pageId);
-      const pb = (pagesByBook[currentFavScope]||[]).findIndex(p=>p.id===b.pageId);
-      return pa-pb;
-    });
-    els.favTitle.textContent = "Favoriler";
-  } else {
-    list = [];
-    for(const b of books){ for(const h of (highlightsByBook[b.id]||[])) list.push(h); }
-    list.sort((a,b)=>b.createdAt-a.createdAt);
-    els.favTitle.textContent = "Tüm Favoriler";
+  function updateTopTitle(){
+    const c = currentConv();
+    topTitle.textContent = c ? (c.title || "Yeni sohbet") : "Yeni sohbet";
+    const chipText = $("modelChipText");
+    if(state.chainEnabled && state.chainModels.length >= 2){
+      chipText.textContent = `Zincir: ${state.chainModels.length} model`;
+    } else {
+      chipText.textContent = state.currentModel || "model seçilmedi";
+    }
   }
-  els.favList.innerHTML = "";
-  if(list.length === 0){
-    els.favList.innerHTML = `<div class="fav-empty">Henüz işaretlenmiş bir bölüm yok. Bir kitabı okurken "İşaretle" ile ekleyebilirsin.</div>`;
-  } else {
-    for(const h of list){
-      const bookPages = pagesByBook[h.bookId] || [];
-      const pageIdx = bookPages.findIndex(p=>p.id===h.pageId);
-      const page = pageIdx >= 0 ? bookPages[pageIdx] : null;
-      const book = books.find(b=>b.id===h.bookId);
-      const row = document.createElement("div");
-      row.className = "fav-row";
-      row.innerHTML = `
-        <button class="fav-thumb" style="border:none;padding:0;"><img alt=""></button>
-        <button class="fav-info" style="border:none;background:none;text-align:left;padding:0;">
-          ${currentFavScope ? "" : `<div class="fav-book">${escapeHtml(book ? book.title : "Kitap")}</div>`}
-          <div class="fp">Sayfa ${pageIdx>=0 ? pageIdx+1 : "?"}</div>
-          <div class="fn">${escapeHtml(h.note || "İşaretli bölüm")}</div>
-        </button>
-        <button class="fav-del" aria-label="Sil">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m-9 0v14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V6"/></svg>
-        </button>`;
-      if(page){
-        makeFavThumb(page.blob, h).then((url)=>{
-          if(!url) return;
-          favThumbUrls.push(url);
-          const im = row.querySelector(".fav-thumb img");
-          if(im) im.src = url;
+
+  // ---------------- Markdown / code rendering ----------------
+  marked.setOptions({
+    breaks: true,
+    gfm: true,
+  });
+
+  function renderMarkdownInto(container, text){
+    const html = marked.parse(text || "");
+    container.innerHTML = html;
+    // wrap <pre><code> blocks with header + copy button, apply highlight.js
+    container.querySelectorAll("pre").forEach((pre)=>{
+      const codeEl = pre.querySelector("code");
+      if(!codeEl) return;
+      let lang = "";
+      const cls = codeEl.className || "";
+      const m = cls.match(/language-(\w+)/);
+      if(m) lang = m[1];
+      try{ hljs.highlightElement(codeEl); }catch(e){}
+
+      const wrap = document.createElement("div");
+      wrap.className = "code-block";
+      const head = document.createElement("div");
+      head.className = "code-block-head";
+      head.innerHTML = `<span>${lang || "kod"}</span>`;
+      const copyBtn = document.createElement("button");
+      copyBtn.className = "copy-btn";
+      copyBtn.textContent = "Kopyala";
+      copyBtn.addEventListener("click", ()=>{
+        navigator.clipboard.writeText(codeEl.textContent).then(()=>{
+          copyBtn.textContent = "Kopyalandı";
+          setTimeout(()=> copyBtn.textContent = "Kopyala", 1400);
         });
-      }
-      row.querySelector(".fav-del").addEventListener("click",(e)=>{ e.stopPropagation(); deleteHighlight(h); });
-      row.querySelector(".fav-thumb").addEventListener("click", ()=> jumpToFavorite(h));
-      row.querySelector(".fav-info").addEventListener("click", ()=> jumpToFavorite(h));
-      els.favList.appendChild(row);
-    }
-  }
-  els.favoritesMask.classList.add("active");
-}
-async function jumpToFavorite(h){
-  els.favoritesMask.classList.remove("active");
-  if(currentBookId !== h.bookId){
-    await openBook(h.bookId);
-  }
-  const pages = currentPages();
-  const idx = pages.findIndex(p=>p.id===h.pageId);
-  currentIndex = idx >= 0 ? idx : 0;
-  renderPage();
-}
-async function deleteHighlight(h){
-  await idbDelete("highlights", h.id);
-  highlightsByBook[h.bookId] = (highlightsByBook[h.bookId]||[]).filter(x=>x.id!==h.id);
-  if(currentBookId === h.bookId) renderHighlightOverlays(currentIndex);
-  openFavorites(currentFavScope);
-}
-$("#favClose").addEventListener("click", ()=> els.favoritesMask.classList.remove("active"));
-$("#favoritesMask").addEventListener("click",(e)=>{ if(e.target===els.favoritesMask) els.favoritesMask.classList.remove("active"); });
-$("#sheetOpenFavs").addEventListener("click", ()=>{ els.sheetMask.classList.remove("active"); openFavorites(currentBookId); });
-$("#btnAllFavorites").addEventListener("click", ()=> openFavorites(null));
+      });
+      head.appendChild(copyBtn);
 
-/* ============ MANAGE PAGES (reorder / delete) ============ */
-let pagesManageThumbUrls = [];
-function openPagesManage(){
-  pagesManageThumbUrls.forEach(u=>URL.revokeObjectURL(u));
-  pagesManageThumbUrls = [];
-  const pages = currentPages();
-  els.pagesManageList.innerHTML = "";
-  if(pages.length === 0){
-    els.pagesManageList.innerHTML = `<div class="fav-empty">Bu kitapta henüz sayfa yok.</div>`;
-  } else {
-    pages.forEach((p, idx)=>{
-      const row = document.createElement("div");
-      row.className = "pgm-row";
-      const url = URL.createObjectURL(p.blob);
-      pagesManageThumbUrls.push(url);
-      row.innerHTML = `
-        <div class="fav-thumb"><img src="${url}" alt=""></div>
-        <div class="pgm-info">Sayfa ${idx+1}</div>
-        <div class="pgm-actions">
-          <button class="pgm-btn" data-act="up" ${idx===0?"disabled":""} aria-label="Yukarı taşı">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
-          </button>
-          <button class="pgm-btn" data-act="down" ${idx===pages.length-1?"disabled":""} aria-label="Aşağı taşı">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
-          </button>
-          <button class="pgm-btn danger" data-act="del" aria-label="Sayfayı sil">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m-9 0v14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V6"/></svg>
-          </button>
-        </div>`;
-      row.querySelector('[data-act="up"]').addEventListener("click", ()=> movePage(idx, -1));
-      row.querySelector('[data-act="down"]').addEventListener("click", ()=> movePage(idx, 1));
-      row.querySelector('[data-act="del"]').addEventListener("click", ()=> deletePageAction(p.id));
-      els.pagesManageList.appendChild(row);
+      pre.parentNode.insertBefore(wrap, pre);
+      wrap.appendChild(head);
+      wrap.appendChild(pre);
     });
   }
-  els.pagesManageMask.classList.add("active");
-}
-async function movePage(idx, dir){
-  const pages = currentPages();
-  const j = idx+dir;
-  if(j<0 || j>=pages.length) return;
-  const tmp = pages[idx]; pages[idx] = pages[j]; pages[j] = tmp;
-  pages[idx].order = idx; pages[j].order = j;
-  await idbPut("pages", pages[idx]);
-  await idbPut("pages", pages[j]);
-  if(currentIndex === idx) currentIndex = j;
-  else if(currentIndex === j) currentIndex = idx;
-  openPagesManage();
-}
-async function deletePageAction(pageId){
-  const bookId = currentBookId;
-  const pages = pagesByBook[bookId] || [];
-  const idx = pages.findIndex(p=>p.id===pageId);
-  if(idx < 0) return;
-  await idbDelete("pages", pageId);
-  pages.splice(idx, 1);
-  for(let i=0;i<pages.length;i++){
-    if(pages[i].order !== i){ pages[i].order = i; await idbPut("pages", pages[i]); }
-  }
-  const hls = highlightsByBook[bookId] || [];
-  const toRemove = hls.filter(h=>h.pageId===pageId);
-  for(const h of toRemove){ await idbDelete("highlights", h.id); }
-  highlightsByBook[bookId] = hls.filter(h=>h.pageId!==pageId);
-  if(currentIndex >= pages.length) currentIndex = Math.max(0, pages.length-1);
-  openPagesManage();
-  toast("Sayfa silindi");
-}
-$("#pagesManageClose").addEventListener("click", ()=>{ els.pagesManageMask.classList.remove("active"); renderPage(); });
-$("#pagesManageMask").addEventListener("click",(e)=>{ if(e.target===els.pagesManageMask){ els.pagesManageMask.classList.remove("active"); renderPage(); } });
-$("#sheetOpenPages").addEventListener("click", ()=>{ els.sheetMask.classList.remove("active"); openPagesManage(); });
 
-/* ============ BOOK MENU (rename/delete) ============ */
-$("#btnBookMenu").addEventListener("click", ()=>{
-  const book = books.find(b=>b.id===currentBookId);
-  els.sheetTitle.textContent = "Kitap ayarları";
-  els.bookNameInput.value = book ? book.title : "";
-  els.deleteRow.style.display = "flex";
-  els.favRow.style.display = "flex";
-  els.pagesRow.style.display = "flex";
-  els.sheetMask.dataset.mode = "";
-  els.sheetMask.classList.add("active");
-});
-$("#sheetCancel").addEventListener("click", ()=> els.sheetMask.classList.remove("active"));
-$("#sheetMask").addEventListener("click",(e)=>{ if(e.target===els.sheetMask) els.sheetMask.classList.remove("active"); });
-$("#sheetSave").addEventListener("click", async ()=>{
-  const name = els.bookNameInput.value.trim();
-  if(!name){ toast("Bir isim gir"); return; }
-  if(currentBookId && els.viewReader.classList.contains("active")){
-    const book = books.find(b=>b.id===currentBookId);
-    book.title = name;
-    await idbPut("books", book);
-    els.readerTitle.textContent = name;
-  } else if(pendingNewBookId){
-    const book = books.find(b=>b.id===pendingNewBookId);
-    if(book){ book.title = name; await idbPut("books", book); }
-  }
-  els.sheetMask.classList.remove("active");
-});
-$("#sheetDelete").addEventListener("click", async ()=>{
-  if(!currentBookId) return;
-  const pages = await idbGetAllByIndex("pages","bookId",currentBookId);
-  for(const p of pages) await idbDelete("pages", p.id);
-  const hls = await idbGetAllByIndex("highlights","bookId",currentBookId);
-  for(const h of hls) await idbDelete("highlights", h.id);
-  delete highlightsByBook[currentBookId];
-  await idbDelete("books", currentBookId);
-  els.sheetMask.classList.remove("active");
-  showView("library");
-  await loadLibrary();
-  toast("Kitap silindi");
-});
+  // ---------------- Message rendering ----------------
+  function renderMessages(){
+    const c = currentConv();
+    updateTopTitle();
+    messagesEl.innerHTML = "";
 
-/* ============ NEW BOOK / SCAN FLOW ============ */
-let pendingNewBookId = null;
-$("#btnNewBook").addEventListener("click", startNewBookFlow);
-function startNewBookFlow(){
-  els.sheetTitle.textContent = "Yeni kitap";
-  els.bookNameInput.value = "";
-  els.deleteRow.style.display = "none";
-  els.favRow.style.display = "none";
-  els.pagesRow.style.display = "none";
-  pendingNewBookId = null;
-  els.sheetMask.classList.add("active");
-  els.sheetMask.dataset.mode = "new";
-}
-// override save behavior for "new book" mode
-const originalSave = $("#sheetSave");
-originalSave.addEventListener("click", async ()=>{
-  if(els.sheetMask.dataset.mode === "new"){
-    const name = els.bookNameInput.value.trim() || "Adsız kitap";
-    const book = {id: uid(), title: name, createdAt: Date.now()};
-    await idbPut("books", book);
-    books.unshift(book);
-    pagesByBook[book.id] = [];
-    scanTargetBookId = book.id;
-    els.sheetMask.dataset.mode = "";
-    els.sheetMask.classList.remove("active");
-    openScanner(book.id);
-  }
-});
-
-$("#btnAddPage").addEventListener("click", ()=> openScanner(currentBookId));
-
-async function openScanner(bookId){
-  scanTargetBookId = bookId;
-  showView("scan");
-  updateScanCount();
-  await startCamera();
-}
-function updateScanCount(){
-  const n = (pagesByBook[scanTargetBookId] || []).length;
-  els.scanCount.textContent = n + (n===1 ? " sayfa tarandı" : " sayfa tarandı");
-}
-
-$("#btnScanClose").addEventListener("click", async ()=>{
-  showView("library");
-  await loadLibrary();
-});
-$("#btnScanDone").addEventListener("click", async ()=>{
-  if(currentBookId === scanTargetBookId && els.viewReader.classList.contains("active")){
-    showView("reader");
-    renderPage();
-  } else {
-    await openBook(scanTargetBookId, "edit");
-  }
-});
-
-/* ---- camera ---- */
-async function startCamera(){
-  els.camFallback.style.display = "none";
-  els.camVideo.style.display = "block";
-  try{
-    stream = await navigator.mediaDevices.getUserMedia({
-      video:{ facingMode:{ideal:"environment"}, width:{ideal:1920}, height:{ideal:1080} },
-      audio:false
-    });
-    els.camVideo.srcObject = stream;
-  }catch(err){
-    els.camVideo.style.display = "none";
-    els.camFallback.style.display = "flex";
-  }
-}
-function stopCamera(){
-  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream = null; }
-}
-
-$("#btnShutter").addEventListener("click", ()=>{
-  if(!stream){ els.galleryInput.click(); return; }
-  const video = els.camVideo;
-  const canvas = document.createElement("canvas");
-  canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-  const ctx = canvas.getContext("2d");
-  ctx.drawImage(video, 0, 0);
-  canvas.toBlob((blob)=>{ openCrop(blob); }, "image/jpeg", 0.92);
-});
-$("#btnGallery").addEventListener("click", ()=> els.galleryInput.click());
-els.galleryInput.addEventListener("change", (e)=>{
-  const files = Array.from(e.target.files || []);
-  if(files.length) openCrop(files[0]);
-  els.galleryInput.value = "";
-});
-
-/* ============ CROP ============
-   #cropImg is a <canvas> holding the "baked" working image (rotation and
-   mirror applied). It is displayed at (pos.left, pos.top) and CSS-scaled
-   by fitScale*userScale. The crop rectangle lives in fixed viewport pixel
-   coordinates, independent of image size/orientation, so it always matches
-   what's on screen regardless of device size (fixes the old overflow bug). */
-let sourceBitmap = null;   // pristine decoded photo, never mutated
-let rotationDeg = 0;       // 0/90/180/270 (manual, step rotation), re-baked from sourceBitmap each time
-let fineRotationDeg = 0;   // -20..20, continuous deskew (from AI or fine control), added on top of rotationDeg
-let flipped = false;
-let naturalW = 0, naturalH = 0; // baked canvas size
-let fitScale = 1;          // "cover" scale at userScale=1
-let userScale = 1;         // 1..5, user pinch zoom
-let pos = {left:0, top:0}; // baked canvas position in viewport px
-let rect = {x:0,y:0,w:0,h:0}; // crop rectangle in viewport px
-
-function bakeWorkingCanvas(){
-  const sw = sourceBitmap.width, sh = sourceBitmap.height;
-  const rotated = rotationDeg % 180 !== 0;
-  naturalW = rotated ? sh : sw;
-  naturalH = rotated ? sw : sh;
-  els.cropImg.width = naturalW;
-  els.cropImg.height = naturalH;
-  const ctx = els.cropImg.getContext("2d");
-  const totalDeg = rotationDeg + fineRotationDeg;
-  // small extra rotation (deskew) leaves gaps at the corners of the fixed
-  // canvas size, so scale the source up slightly to compensate.
-  const comp = 1 + Math.min(0.3, Math.abs(fineRotationDeg) * 0.022);
-  ctx.save();
-  ctx.clearRect(0,0,naturalW,naturalH);
-  ctx.fillStyle = "#e9e2d0";
-  ctx.fillRect(0,0,naturalW,naturalH);
-  ctx.translate(naturalW/2, naturalH/2);
-  ctx.rotate(totalDeg * Math.PI/180);
-  if(flipped) ctx.scale(-1,1);
-  ctx.drawImage(sourceBitmap, -sw*comp/2, -sh*comp/2, sw*comp, sh*comp);
-  ctx.restore();
-}
-
-function vp(){ return {w: els.cropViewport.clientWidth, h: els.cropViewport.clientHeight}; }
-
-function clampPos(){
-  const {w:vpW, h:vpH} = vp();
-  const w = naturalW*fitScale*userScale, h = naturalH*fitScale*userScale;
-  pos.left = Math.min(0, Math.max(vpW - w, pos.left));
-  pos.top = Math.min(0, Math.max(vpH - h, pos.top));
-}
-
-function applyViewTransform(){
-  els.cropImg.style.transform = `translate(${pos.left}px, ${pos.top}px) scale(${fitScale*userScale})`;
-}
-
-function resetCropRect(){
-  const {w:vpW, h:vpH} = vp();
-  const mx = Math.max(vpW*0.08, 28), my = Math.max(vpH*0.05, 24);
-  rect = {x:mx, y:my, w:Math.max(56,vpW-2*mx), h:Math.max(56,vpH-2*my)};
-  layoutCropRect();
-}
-
-function layoutCropRect(){
-  const {w:vpW, h:vpH} = vp();
-  els.cropRect.style.left = rect.x+"px"; els.cropRect.style.top = rect.y+"px";
-  els.cropRect.style.width = rect.w+"px"; els.cropRect.style.height = rect.h+"px";
-  $("#hTL").style.left=rect.x+"px"; $("#hTL").style.top=rect.y+"px";
-  $("#hTR").style.left=(rect.x+rect.w)+"px"; $("#hTR").style.top=rect.y+"px";
-  $("#hBL").style.left=rect.x+"px"; $("#hBL").style.top=(rect.y+rect.h)+"px";
-  $("#hBR").style.left=(rect.x+rect.w)+"px"; $("#hBR").style.top=(rect.y+rect.h)+"px";
-  $("#dimTop").style.cssText   = `left:0; top:0; width:${vpW}px; height:${rect.y}px;`;
-  $("#dimBottom").style.cssText= `left:0; top:${rect.y+rect.h}px; width:${vpW}px; height:${Math.max(0,vpH-rect.y-rect.h)}px;`;
-  $("#dimLeft").style.cssText  = `left:0; top:${rect.y}px; width:${rect.x}px; height:${rect.h}px;`;
-  $("#dimRight").style.cssText = `left:${rect.x+rect.w}px; top:${rect.y}px; width:${Math.max(0,vpW-rect.x-rect.w)}px; height:${rect.h}px;`;
-}
-
-function resetView(){
-  const {w:vpW, h:vpH} = vp();
-  if(vpW===0 || vpH===0 || !naturalW) return;
-  fitScale = Math.max(vpW/naturalW, vpH/naturalH);
-  userScale = 1;
-  const w = naturalW*fitScale, h = naturalH*fitScale;
-  pos.left = (vpW-w)/2; pos.top = (vpH-h)/2;
-  clampPos();
-  applyViewTransform();
-  resetCropRect();
-}
-
-let originalPhotoBlob = null; // untouched original photo — lets "Sıfırla" undo even a perspective warp
-let warpApplied = false;
-
-function openCrop(blob){
-  showView("crop");
-  activeFilter = "none";
-  aiCleanParams = null;
-  warpApplied = false;
-  originalPhotoBlob = blob;
-  document.querySelectorAll(".filter-chip").forEach(c=>c.classList.toggle("on", c.dataset.filter==="none"));
-  createImageBitmap(blob).then((bmp)=>{
-    if(sourceBitmap){ try{ sourceBitmap.close(); }catch(e){} }
-    sourceBitmap = bmp;
-    rotationDeg = 0; flipped = false; fineRotationDeg = 0;
-    bakeWorkingCanvas();
-    requestAnimationFrame(()=> requestAnimationFrame(resetView)); // wait for layout to settle
-  }).catch(()=> toast("Fotoğraf açılamadı"));
-}
-
-window.addEventListener("resize", ()=>{ if(els.viewCrop.classList.contains("active")) resetView(); });
-if("ResizeObserver" in window){
-  // catches any case where the viewport's real size becomes available a
-  // frame later than expected (e.g. right after the view is shown) — the
-  // root cause of handles landing outside the visible area.
-  new ResizeObserver(()=>{ if(els.viewCrop.classList.contains("active") && naturalW) resetView(); }).observe(els.cropViewport);
-}
-
-/* ---- pan + pinch-zoom on the photo ---- */
-const activePointers = new Map();
-let panStart = null, pinchStartDist = null, pinchStartScale = 1, pinchStartPos = null, pinchFocal = null;
-function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
-
-els.cropViewport.addEventListener("pointerdown",(e)=>{
-  if(e.target.closest(".handle")) return;
-  e.preventDefault();
-  els.cropViewport.setPointerCapture(e.pointerId);
-  activePointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
-  if(activePointers.size === 1){
-    panStart = {x:e.clientX, y:e.clientY, left:pos.left, top:pos.top};
-  } else if(activePointers.size === 2){
-    const pts = [...activePointers.values()];
-    pinchStartDist = dist(pts[0], pts[1]);
-    pinchStartScale = userScale;
-    pinchStartPos = {...pos};
-    const vpRect = els.cropViewport.getBoundingClientRect();
-    pinchFocal = {x:(pts[0].x+pts[1].x)/2 - vpRect.left, y:(pts[0].y+pts[1].y)/2 - vpRect.top};
-  }
-});
-els.cropViewport.addEventListener("pointermove",(e)=>{
-  if(!activePointers.has(e.pointerId)) return;
-  activePointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
-  if(activePointers.size === 1 && panStart){
-    pos.left = panStart.left + (e.clientX - panStart.x);
-    pos.top = panStart.top + (e.clientY - panStart.y);
-    clampPos();
-    applyViewTransform();
-  } else if(activePointers.size === 2 && pinchStartDist){
-    const pts = [...activePointers.values()];
-    const d = dist(pts[0], pts[1]);
-    let newScale = Math.max(1, Math.min(5, pinchStartScale * (d/pinchStartDist)));
-    const oldW = naturalW*fitScale*pinchStartScale, oldH = naturalH*fitScale*pinchStartScale;
-    const relX = (pinchFocal.x - pinchStartPos.left)/oldW, relY = (pinchFocal.y - pinchStartPos.top)/oldH;
-    const newW = naturalW*fitScale*newScale, newH = naturalH*fitScale*newScale;
-    pos.left = pinchFocal.x - relX*newW;
-    pos.top = pinchFocal.y - relY*newH;
-    userScale = newScale;
-    clampPos();
-    applyViewTransform();
-  }
-});
-function endPointer(e){
-  activePointers.delete(e.pointerId);
-  pinchStartDist = null;
-  if(activePointers.size === 1){
-    const [p] = activePointers.values();
-    panStart = {x:p.x, y:p.y, left:pos.left, top:pos.top};
-  } else {
-    panStart = null;
-  }
-}
-els.cropViewport.addEventListener("pointerup", endPointer);
-els.cropViewport.addEventListener("pointercancel", endPointer);
-
-/* ---- crop rectangle handles (fixed viewport-pixel space) ---- */
-function makeDraggable(handle, corner){
-  handle.addEventListener("pointerdown",(e)=>{
-    e.preventDefault(); e.stopPropagation();
-    handle.setPointerCapture(e.pointerId);
-    const vpRect = els.cropViewport.getBoundingClientRect();
-    const minSize = 56;
-    const move = (ev)=>{
-      let x = Math.max(0, Math.min(vpRect.width, ev.clientX - vpRect.left));
-      let y = Math.max(0, Math.min(vpRect.height, ev.clientY - vpRect.top));
-      if(corner === "tl"){
-        rect.w = Math.max(minSize, rect.x + rect.w - x);
-        rect.h = Math.max(minSize, rect.y + rect.h - y);
-        rect.x = Math.min(x, rect.x + rect.w - minSize);
-        rect.y = Math.min(y, rect.y + rect.h - minSize);
-      } else if(corner === "tr"){
-        rect.w = Math.max(minSize, x - rect.x);
-        rect.h = Math.max(minSize, rect.y + rect.h - y);
-        rect.y = Math.min(y, rect.y + rect.h - minSize);
-      } else if(corner === "bl"){
-        rect.w = Math.max(minSize, rect.x + rect.w - x);
-        rect.x = Math.min(x, rect.x + rect.w - minSize);
-        rect.h = Math.max(minSize, y - rect.y);
-      } else if(corner === "br"){
-        rect.w = Math.max(minSize, x - rect.x);
-        rect.h = Math.max(minSize, y - rect.y);
-      }
-      layoutCropRect();
-    };
-    const up = (ev)=>{
-      handle.releasePointerCapture(e.pointerId);
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", up);
-    };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", up);
-  });
-}
-makeDraggable($("#hTL"),"tl"); makeDraggable($("#hTR"),"tr");
-makeDraggable($("#hBL"),"bl"); makeDraggable($("#hBR"),"br");
-
-document.querySelectorAll(".filter-chip").forEach(chip=>{
-  if(chip.dataset.filter === "ai") return; // handled separately, needs an API call first
-  chip.addEventListener("click", ()=>{
-    activeFilter = chip.dataset.filter;
-    document.querySelectorAll(".filter-chip").forEach(c=>c.classList.toggle("on", c===chip));
-  });
-});
-
-let aiCleanParams = null; // {blackPoint, whitePoint} from the last successful AI analysis
-function invalidateAiClean(){
-  aiCleanParams = null;
-  if(activeFilter === "ai"){
-    activeFilter = "none";
-    document.querySelectorAll(".filter-chip").forEach(c=>c.classList.toggle("on", c.dataset.filter==="none"));
-  }
-}
-
-$("#btnCropRotate").addEventListener("click", ()=>{
-  rotationDeg = (rotationDeg + 90) % 360;
-  fineRotationDeg = 0;
-  bakeWorkingCanvas();
-  resetView();
-  invalidateAiClean();
-});
-$("#btnCropFlip").addEventListener("click", ()=>{
-  flipped = !flipped;
-  bakeWorkingCanvas();
-  resetView();
-  invalidateAiClean();
-});
-$("#btnCropReset").addEventListener("click", ()=>{
-  if(warpApplied && originalPhotoBlob){
-    // a perspective warp replaced the working image — restore the untouched original
-    createImageBitmap(originalPhotoBlob).then((bmp)=>{
-      if(sourceBitmap){ try{ sourceBitmap.close(); }catch(e){} }
-      sourceBitmap = bmp;
-      warpApplied = false;
-      rotationDeg = 0; flipped = false; fineRotationDeg = 0;
-      bakeWorkingCanvas();
-      resetView();
-      invalidateAiClean();
-      toast("Perspektif düzeltmesi geri alındı");
-    }).catch(()=> toast("Sıfırlanamadı"));
-    return;
-  }
-  rotationDeg = 0; flipped = false; fineRotationDeg = 0;
-  bakeWorkingCanvas();
-  resetView();
-  invalidateAiClean();
-});
-$("#btnCropCancel").addEventListener("click", ()=>{
-  if(sourceBitmap){ try{ sourceBitmap.close(); }catch(e){} sourceBitmap = null; }
-  showView("scan");
-});
-
-/* ---- AI: suggested "clean scan" levels (whiten background, sharpen ink) ---- */
-async function selectAiCleanFilter(){
-  const chip = $("#chipAiClean");
-  if(aiCleanParams){
-    activeFilter = "ai";
-    document.querySelectorAll(".filter-chip").forEach(c=>c.classList.toggle("on", c===chip));
-    return;
-  }
-  if(!getApiKey()){
-    toast("Önce ayarlardan API anahtarı ekle");
-    els.apiKeyInput.value = "";
-    els.settingsMask.classList.add("active");
-    return;
-  }
-  chip.classList.add("loading");
-  try{
-    const b64 = base64FromCanvas(els.cropImg, 1024);
-    const prompt = "This is a photo of a scanned document/book page. Respond with ONLY compact JSON, no markdown: "+
-      '{"blackPoint": <0-255, the pixel brightness that should be mapped to pure black>, '+
-      '"whitePoint": <0-255, the pixel brightness of the paper background, to be mapped to pure white>}. '+
-      "Pick values so that, after a levels stretch using them, the page background becomes clean white and the ink/text becomes crisp black.";
-    const text = await callGemini(prompt, b64);
-    const parsed = JSON.parse(stripJsonFence(text));
-    let bp = Number(parsed.blackPoint), wp = Number(parsed.whitePoint);
-    if(!isFinite(bp)) bp = 40;
-    if(!isFinite(wp)) wp = 235;
-    bp = Math.max(0, Math.min(120, bp));
-    wp = Math.max(bp+30, Math.min(255, wp));
-    aiCleanParams = {blackPoint:bp, whitePoint:wp};
-    activeFilter = "ai";
-    document.querySelectorAll(".filter-chip").forEach(c=>c.classList.toggle("on", c===chip));
-  }catch(err){
-    toast(err && err.message ? err.message : "Yapay zeka isteği başarısız oldu");
-  }finally{
-    chip.classList.remove("loading");
-  }
-}
-$("#chipAiClean").addEventListener("click", selectAiCleanFilter);
-
-/* ---- AI-assisted perspective correction (detect 4 page corners, warp flat) ---- */
-function base64FromCanvas(canvas, maxDim){
-  let c = canvas;
-  if(canvas.width > maxDim || canvas.height > maxDim){
-    const s = maxDim / Math.max(canvas.width, canvas.height);
-    c = document.createElement("canvas");
-    c.width = Math.round(canvas.width*s); c.height = Math.round(canvas.height*s);
-    c.getContext("2d").drawImage(canvas, 0, 0, c.width, c.height);
-  }
-  return c.toDataURL("image/jpeg", 0.82).split(",")[1];
-}
-
-// Solve the 8x8 linear system for a projective homography from 4 point
-// correspondences (dst -> src), via Gaussian elimination with partial pivoting.
-function solveLinear8(A, b){
-  const n = 8;
-  const M = A.map((row,i)=> row.concat([b[i]]));
-  for(let col=0; col<n; col++){
-    let pivot = col;
-    for(let r=col+1;r<n;r++){ if(Math.abs(M[r][col]) > Math.abs(M[pivot][col])) pivot = r; }
-    const tmp = M[col]; M[col] = M[pivot]; M[pivot] = tmp;
-    const pv = M[col][col];
-    if(Math.abs(pv) < 1e-10) continue;
-    for(let c=col;c<=n;c++) M[col][c] /= pv;
-    for(let r=0;r<n;r++){
-      if(r===col) continue;
-      const factor = M[r][col];
-      if(factor === 0) continue;
-      for(let c=col;c<=n;c++) M[r][c] -= factor*M[col][c];
-    }
-  }
-  return M.map(row=>row[n]);
-}
-// Homography H (8 values, h8 implicit = 1) such that srcPts[i] = H(dstPts[i]).
-function computeHomography(dstPts, srcPts){
-  const A=[], b=[];
-  for(let i=0;i<4;i++){
-    const X=dstPts[i].x, Y=dstPts[i].y, u=srcPts[i].x, v=srcPts[i].y;
-    A.push([X,Y,1,0,0,0,-X*u,-Y*u]); b.push(u);
-    A.push([0,0,0,X,Y,1,-X*v,-Y*v]); b.push(v);
-  }
-  return solveLinear8(A,b);
-}
-function mapH(H, p){
-  const denom = H[6]*p.x + H[7]*p.y + 1;
-  return { x: (H[0]*p.x + H[1]*p.y + H[2])/denom, y: (H[3]*p.x + H[4]*p.y + H[5])/denom };
-}
-// Draws one source triangle onto ctx, affine-mapped onto the destination triangle.
-function drawWarpTriangle(ctx, img, s, d){
-  const denom = (s[1].x-s[0].x)*(s[2].y-s[0].y) - (s[2].x-s[0].x)*(s[1].y-s[0].y);
-  if(Math.abs(denom) < 1e-8) return;
-  const a = ((d[1].x-d[0].x)*(s[2].y-s[0].y) - (d[2].x-d[0].x)*(s[1].y-s[0].y)) / denom;
-  const b = ((d[1].y-d[0].y)*(s[2].y-s[0].y) - (d[2].y-d[0].y)*(s[1].y-s[0].y)) / denom;
-  const c = ((d[2].x-d[0].x)*(s[1].x-s[0].x) - (d[1].x-d[0].x)*(s[2].x-s[0].x)) / denom;
-  const e = ((d[2].y-d[0].y)*(s[1].x-s[0].x) - (d[1].y-d[0].y)*(s[2].x-s[0].x)) / denom;
-  const tx = d[0].x - a*s[0].x - c*s[0].y;
-  const ty = d[0].y - b*s[0].x - e*s[0].y;
-  ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(d[0].x, d[0].y); ctx.lineTo(d[1].x, d[1].y); ctx.lineTo(d[2].x, d[2].y);
-  ctx.closePath();
-  ctx.clip();
-  ctx.transform(a, b, c, e, tx, ty);
-  ctx.drawImage(img, 0, 0);
-  ctx.restore();
-}
-// Warps the quadrilateral defined by 4 corners (fractions 0-1 of naturalW/H) so
-// it fills a straight rectangle, as if the page had been photographed head-on.
-function warpQuadToRect(corners){
-  const srcQuad = ["tl","tr","br","bl"].map(k=>({x: corners[k].x*naturalW, y: corners[k].y*naturalH}));
-  const topW = dist(srcQuad[0], srcQuad[1]), botW = dist(srcQuad[3], srcQuad[2]);
-  const leftH = dist(srcQuad[0], srcQuad[3]), rightH = dist(srcQuad[1], srcQuad[2]);
-  const outW = Math.max(40, Math.round(Math.max(topW, botW)));
-  const outH = Math.max(40, Math.round(Math.max(leftH, rightH)));
-  const dstQuad = [{x:0,y:0},{x:outW,y:0},{x:outW,y:outH},{x:0,y:outH}];
-  const H = computeHomography(dstQuad, srcQuad); // dst -> src
-
-  const out = document.createElement("canvas");
-  out.width = outW; out.height = outH;
-  const octx = out.getContext("2d");
-  octx.fillStyle = "#e9e2d0"; octx.fillRect(0,0,outW,outH);
-  const GRID = 20;
-  for(let j=0;j<GRID;j++){
-    for(let i=0;i<GRID;i++){
-      const dx0 = outW*i/GRID, dx1 = outW*(i+1)/GRID;
-      const dy0 = outH*j/GRID, dy1 = outH*(j+1)/GRID;
-      const d00={x:dx0,y:dy0}, d10={x:dx1,y:dy0}, d11={x:dx1,y:dy1}, d01={x:dx0,y:dy1};
-      const s00=mapH(H,d00), s10=mapH(H,d10), s11=mapH(H,d11), s01=mapH(H,d01);
-      drawWarpTriangle(octx, els.cropImg, [s00,s10,s11], [d00,d10,d11]);
-      drawWarpTriangle(octx, els.cropImg, [s00,s11,s01], [d00,d11,d01]);
-    }
-  }
-  return out;
-}
-function quadLooksValid(c){
-  // basic sanity: all points in range and roughly in tl/tr/br/bl order (convex-ish)
-  const pts = ["tl","tr","br","bl"].map(k=>c[k]);
-  if(pts.some(p=>!p || !isFinite(p.x) || !isFinite(p.y))) return false;
-  if(pts.some(p=>p.x<-0.05||p.x>1.05||p.y<-0.05||p.y>1.05)) return false;
-  const area = Math.abs(
-    (pts[0].x*(pts[1].y-pts[3].y) + pts[1].x*(pts[2].y-pts[0].y) +
-     pts[2].x*(pts[3].y-pts[1].y) + pts[3].x*(pts[0].y-pts[2].y)) / 2
-  );
-  return area > 0.03; // page should cover a meaningful chunk of the frame
-}
-async function commitWarpedCanvas(canvas){
-  const bmp = await createImageBitmap(canvas);
-  if(sourceBitmap){ try{ sourceBitmap.close(); }catch(e){} }
-  sourceBitmap = bmp;
-  warpApplied = true;
-  rotationDeg = 0; flipped = false; fineRotationDeg = 0;
-  bakeWorkingCanvas();
-  resetView();
-  invalidateAiClean();
-}
-async function callAiAlign(){
-  if(!getApiKey()){
-    toast("Önce ayarlardan API anahtarı ekle");
-    els.apiKeyInput.value = "";
-    els.settingsMask.classList.add("active");
-    return;
-  }
-  const btn = $("#btnCropAi");
-  btn.classList.add("loading");
-  try{
-    const b64 = base64FromCanvas(els.cropImg, 1200);
-    const prompt = "This is a photo of a single page (paper/notebook sheet), possibly photographed at an angle "+
-      "so the page looks like a distorted quadrilateral instead of a straight rectangle, with some background "+
-      "(desk, table, other objects) around it. Find the four corners of the page itself, as precisely as possible, "+
-      "excluding the surrounding background. Respond with ONLY compact JSON, no markdown, no explanation: "+
-      '{"corners": {"tl": {"x":0-1,"y":0-1}, "tr": {"x":0-1,"y":0-1}, "br": {"x":0-1,"y":0-1}, "bl": {"x":0-1,"y":0-1}}} '+
-      "where x,y are fractions of the image width/height, and tl/tr/br/bl are the top-left, top-right, bottom-right "+
-      "and bottom-left corners of the page as a person reading it would orient it (text reads left-to-right, top-to-bottom).";
-    const text = await callGemini(prompt, b64);
-    const parsed = JSON.parse(stripJsonFence(text));
-    if(!parsed.corners || !quadLooksValid(parsed.corners)){
-      toast("Sayfa kenarları algılanamadı, köşelerden elle kırp");
+    if(!c || c.messages.length === 0){
+      const es = document.createElement("div");
+      es.className = "empty-state";
+      es.innerHTML = `
+        <span class="brand-mark" style="width:44px;height:44px;border-radius:12px;">
+          <svg width="22" height="22" viewBox="0 0 14 14" fill="none"><path d="M2 3L7 8L2 13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        <div class="es-title">${state.apiKey ? "Bugün sana nasıl yardımcı olabilirim?" : "Önce API key'ini gir"}</div>
+        <div class="es-sub">${state.apiKey ? "Soru sor, kod yazdır ya da bir dosya ekle." : "Ayarlar'dan NVIDIA API key'ini ve model ID'sini girerek başla."}</div>`;
+      messagesEl.appendChild(es);
+      scrollToBottom();
       return;
     }
-    const warped = warpQuadToRect(parsed.corners);
-    await commitWarpedCanvas(warped);
-    toast("Perspektif düzeltildi");
-  }catch(err){
-    toast(err && err.message ? err.message : "Yapay zeka isteği başarısız oldu");
-  }finally{
-    btn.classList.remove("loading");
+
+    for(const m of c.messages){
+      appendMessageDOM(m);
+    }
+    scrollToBottom();
   }
-}
-$("#btnCropAi").addEventListener("click", callAiAlign);
 
-function filterString(){
-  if(activeFilter === "bw") return "grayscale(1) contrast(1.35) brightness(1.12)";
-  if(activeFilter === "enhance") return "contrast(1.2) saturate(1.08) brightness(1.05)";
-  return "none";
-}
+  function appendMessageDOM(m){
+    const row = document.createElement("div");
+    row.className = "msg-row " + m.role;
+    row.dataset.id = m.id;
 
-// AI "clean scan": levels stretch using AI-suggested black/white points, applied
-// per-pixel on luminance so the paper background goes to white and ink goes to
-// black — a real (if modest) reconstruction step beyond a flat CSS filter.
-function applyAiCleanLevels(ctx, w, h, blackPoint, whitePoint){
-  const imgData = ctx.getImageData(0, 0, w, h);
-  const d = imgData.data;
-  const range = Math.max(1, whitePoint - blackPoint);
-  for(let i=0; i<d.length; i+=4){
-    for(let c=0; c<3; c++){
-      let v = d[i+c];
-      v = (v - blackPoint) / range * 255;
-      d[i+c] = v < 0 ? 0 : (v > 255 ? 255 : v);
+    const avatar = document.createElement("div");
+    avatar.className = "avatar";
+    if(m.role === "assistant"){
+      avatar.innerHTML = `<svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M2 3L7 8L2 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    }
+
+    const body = document.createElement("div");
+    body.className = "msg-body";
+
+    if(m.files && m.files.length){
+      const chips = document.createElement("div");
+      chips.style.marginBottom = "6px";
+      for(const f of m.files){
+        const chip = document.createElement("span");
+        chip.className = "file-chip";
+        chip.textContent = (f.kind === "image" ? "🖼 " : "📄 ") + f.name;
+        chips.appendChild(chip);
+      }
+      body.appendChild(chips);
+    }
+
+    let stagesEl = null;
+    if(m.chain && m.chain.length){
+      stagesEl = document.createElement("div");
+      stagesEl.className = "chain-stages";
+      body.appendChild(stagesEl);
+      m.chain.forEach((stage, i)=>{
+        const stageBodyEl = appendChainStageDOM(stagesEl, stage, i);
+        renderMarkdownInto(stageBodyEl, stage.content);
+      });
+      const finalLabel = document.createElement("div");
+      finalLabel.className = "chain-final-label";
+      finalLabel.textContent = "Nihai cevap";
+      body.appendChild(finalLabel);
+    }
+
+    const content = document.createElement("div");
+    content.className = "msg-content";
+    body.appendChild(content);
+
+    row.appendChild(avatar);
+    row.appendChild(body);
+    messagesEl.appendChild(row);
+
+    renderMarkdownInto(content, m.content);
+    return content;
+  }
+
+  function appendChainMessageDOM(m){
+    const row = document.createElement("div");
+    row.className = "msg-row assistant";
+    row.dataset.id = m.id;
+
+    const avatar = document.createElement("div");
+    avatar.className = "avatar";
+    avatar.innerHTML = `<svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M2 3L7 8L2 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+    const body = document.createElement("div");
+    body.className = "msg-body";
+
+    const stagesEl = document.createElement("div");
+    stagesEl.className = "chain-stages";
+    body.appendChild(stagesEl);
+
+    const finalLabel = document.createElement("div");
+    finalLabel.className = "chain-final-label";
+    finalLabel.textContent = "Nihai cevap";
+    body.appendChild(finalLabel);
+
+    const content = document.createElement("div");
+    content.className = "msg-content";
+    body.appendChild(content);
+
+    row.appendChild(avatar);
+    row.appendChild(body);
+    messagesEl.appendChild(row);
+
+    return { contentEl: content, stagesEl };
+  }
+
+  function appendChainStageDOM(stagesEl, stage, index){
+    const det = document.createElement("details");
+    det.className = "chain-stage";
+    if(index === 0) det.open = false;
+    const sum = document.createElement("summary");
+    sum.innerHTML = `<span class="chain-stage-num">Aşama ${index+1}</span><span class="chain-stage-model">${escapeHtml(stage.model)}</span>`;
+    det.appendChild(sum);
+    const stageBody = document.createElement("div");
+    stageBody.className = "msg-content chain-stage-body";
+    det.appendChild(stageBody);
+    stagesEl.appendChild(det);
+    return stageBody;
+  }
+
+  function scrollToBottom(){
+    requestAnimationFrame(()=>{ scrollArea.scrollTop = scrollArea.scrollHeight; });
+  }
+
+  // ---------------- Error banner ----------------
+  function showError(msg){
+    errorBanner.textContent = msg;
+    errorBanner.classList.remove("hidden");
+  }
+  function hideError(){ errorBanner.classList.add("hidden"); }
+
+  // ---------------- Sending / streaming ----------------
+  function autoGrow(){
+    textInput.style.height = "auto";
+    textInput.style.height = Math.min(textInput.scrollHeight, 200) + "px";
+  }
+  textInput.addEventListener("input", autoGrow);
+  textInput.addEventListener("keydown", (e)=>{
+    if(e.key === "Enter" && !e.shiftKey){
+      e.preventDefault();
+      handleSend();
+    }
+  });
+
+  sendBtn.addEventListener("click", ()=>{
+    if(isStreaming){
+      if(abortController) abortController.abort();
+      return;
+    }
+    handleSend();
+  });
+
+  // ---------------- Streaming helper (single call to the API) ----------------
+  async function streamChatCompletion(model, messages, onDelta, signal){
+    const body = {
+      model: model,
+      messages: messages,
+      stream: true,
+      temperature: parseFloat(state.temperature) || 0.7,
+      max_tokens: parseInt(state.maxTokens) || 2048,
+    };
+
+    const resp = await fetch(state.apiUrl || DEFAULT_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + state.apiKey,
+        "Accept": "text/event-stream",
+      },
+      body: JSON.stringify(body),
+      signal: signal,
+    });
+
+    if(!resp.ok){
+      let errText = "";
+      try{ errText = await resp.text(); }catch(e){}
+      throw new Error(`HTTP ${resp.status} (${model}) — ${errText.slice(0,300)}`);
+    }
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+    let buffer = "";
+    let full = "";
+
+    while(true){
+      const { done, value } = await reader.read();
+      if(done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop();
+      for(const line of lines){
+        const trimmed = line.trim();
+        if(!trimmed.startsWith("data:")) continue;
+        const payload = trimmed.slice(5).trim();
+        if(payload === "[DONE]") continue;
+        try{
+          const json = JSON.parse(payload);
+          const delta = json.choices && json.choices[0] && json.choices[0].delta;
+          const piece = delta && (delta.content || delta.reasoning_content);
+          if(piece){
+            full += piece;
+            onDelta(full);
+          }
+        }catch(e){ /* ignore partial JSON */ }
+      }
+    }
+    return full;
+  }
+
+  function friendlyNetworkError(err){
+    if(err.name === "AbortError") return null;
+    let msg = err.message || String(err);
+    if(msg.includes("Failed to fetch") || msg.includes("NetworkError") || msg.includes("Load failed")){
+      msg = "İstek tarayıcı tarafından engellendi — büyük ihtimalle NVIDIA API'si doğrudan tarayıcı isteklerine (CORS) izin vermiyor. Ayarlar → API adresi kısmına bir proxy URL'i girmen gerekiyor; README'deki 'CORS hakkında önemli not' bölümünde 2 dakikalık ücretsiz kurulum var.";
+    }
+    return msg;
+  }
+
+  async function handleSend(){
+    if(isStreaming) return;
+    const text = textInput.value.trim();
+    if(!text && pendingFiles.length === 0) return;
+
+    if(!state.apiKey){
+      showError("Önce Ayarlar'dan NVIDIA API key'ini gir.");
+      openSettings();
+      return;
+    }
+    const chainActive = state.chainEnabled && state.chainModels.length >= 2;
+    if(!chainActive && !state.currentModel){
+      showError("Önce Ayarlar'dan bir model ID'si ekle ve seç.");
+      openSettings();
+      return;
+    }
+    if(state.chainEnabled && state.chainModels.length < 2){
+      showError("Zincir modu açık ama zincirde en az 2 model olmalı — Ayarlar'dan zincire model ekle, ya da zincir modunu kapat.");
+      openSettings();
+      return;
+    }
+    hideError();
+
+    const conv = currentConv();
+
+    // fold text-file contents into the message body as fenced context
+    let composedText = text;
+    const fileMeta = pendingFiles.map(f=>({name:f.name, kind:f.kind}));
+    const textFileBlocks = pendingFiles
+      .filter(f=>f.kind === "text")
+      .map(f=> `\n\n[Dosya: ${f.name}]\n\`\`\`\n${f.content}\n\`\`\``)
+      .join("");
+    composedText = (text || "") + textFileBlocks;
+
+    const userMsg = {
+      id: "m_" + Date.now() + "_u",
+      role: "user",
+      content: composedText,
+      files: fileMeta.length ? fileMeta.map((meta, i)=>{
+        const src = pendingFiles[i];
+        return { name: meta.name, kind: meta.kind, content: src.kind === "image" ? src.content : undefined };
+      }) : undefined
+    };
+
+    conv.messages.push(userMsg);
+    if(conv.messages.length === 1){
+      conv.title = text ? text.slice(0, 42) : (fileMeta[0] ? fileMeta[0].name : "Yeni sohbet");
+    }
+    conv.updated = Date.now();
+    persistConvs();
+
+    textInput.value = "";
+    autoGrow();
+    pendingFiles = [];
+    renderAttachedChips();
+    renderMessages();
+    renderSidebar();
+
+    isStreaming = true;
+    setSendButtonState(true);
+    abortController = new AbortController();
+
+    if(chainActive){
+      await runChainSend(conv, userMsg);
+    } else {
+      await runSingleSend(conv);
+    }
+
+    isStreaming = false;
+    setSendButtonState(false);
+    abortController = null;
+    conv.updated = Date.now();
+    persistConvs();
+    renderSidebar();
+  }
+
+  async function runSingleSend(conv){
+    const asstMsg = { id: "m_" + Date.now() + "_a", role: "assistant", content: "" };
+    conv.messages.push(asstMsg);
+    const contentEl = appendMessageDOM(asstMsg);
+    contentEl.classList.add("cursor-blink");
+    scrollToBottom();
+
+    const apiMessages = buildApiMessages({ messages: conv.messages.slice(0, -1) });
+
+    try{
+      const full = await streamChatCompletion(state.currentModel, apiMessages, (partial)=>{
+        asstMsg.content = partial;
+        renderMarkdownInto(contentEl, partial);
+        scrollToBottom();
+      }, abortController.signal);
+
+      if(!full){
+        asstMsg.content = "_(boş yanıt geldi)_";
+        renderMarkdownInto(contentEl, asstMsg.content);
+      }
+    }catch(err){
+      if(err.name === "AbortError"){
+        asstMsg.content += "\n\n_[durduruldu]_";
+        renderMarkdownInto(contentEl, asstMsg.content);
+      } else {
+        console.error(err);
+        showError(friendlyNetworkError(err));
+        if(!asstMsg.content){
+          conv.messages.pop();
+          renderMessages();
+        }
+      }
+    } finally {
+      contentEl.classList.remove("cursor-blink");
     }
   }
-  ctx.putImageData(imgData, 0, 0);
-}
 
-function exportPage(useCropBox){
-  let sx=0, sy=0, sw=naturalW, sh=naturalH;
-  if(useCropBox){
-    const total = fitScale*userScale;
-    sx = (rect.x - pos.left)/total;
-    sy = (rect.y - pos.top)/total;
-    sw = rect.w/total;
-    sh = rect.h/total;
-    sx = Math.max(0, Math.min(naturalW-1, sx));
-    sy = Math.max(0, Math.min(naturalH-1, sy));
-    sw = Math.max(1, Math.min(naturalW-sx, sw));
-    sh = Math.max(1, Math.min(naturalH-sy, sh));
-  }
-  const out = document.createElement("canvas");
-  out.width = sw; out.height = sh;
-  const ctx = out.getContext("2d");
-  if(activeFilter === "ai" && aiCleanParams){
-    ctx.drawImage(els.cropImg, sx, sy, sw, sh, 0, 0, sw, sh);
-    applyAiCleanLevels(ctx, sw, sh, aiCleanParams.blackPoint, aiCleanParams.whitePoint);
-  } else {
-    ctx.filter = filterString();
-    ctx.drawImage(els.cropImg, sx, sy, sw, sh, 0, 0, sw, sh);
-  }
-  return new Promise((resolve)=> out.toBlob((blob)=>resolve(blob), "image/jpeg", 0.9));
-}
+  const CHAIN_REVIEW_INSTRUCTION = "Bir model zincirinin bir halkasısın. Aşağıda orijinal istek ve bir önceki modelin ürettiği yanıt var. Önceki yanıtı dikkatle incele: hatalarını düzelt, eksiklerini tamamla, belirsiz noktaları netleştir ve daha iyi, daha eksiksiz bir yanıt üret. Gerekirse orijinal isteği yeniden yorumla. Sadece nihai, iyileştirilmiş yanıtı yaz — 'önceki yanıt şuydu' gibi meta açıklama yapma.";
 
-async function saveCroppedPage(useCropBox){
-  const blob = await exportPage(useCropBox);
-  const pages = pagesByBook[scanTargetBookId] || [];
-  const page = {id: uid(), bookId: scanTargetBookId, order: pages.length, blob};
-  await idbPut("pages", page);
-  pages.push(page);
-  pagesByBook[scanTargetBookId] = pages;
-  updateScanCount();
-  toast("Sayfa kaydedildi");
-  if(sourceBitmap){ try{ sourceBitmap.close(); }catch(e){} sourceBitmap = null; }
-  showView("scan");
-  await startCamera();
-}
-$("#btnCropSave").addEventListener("click", ()=> saveCroppedPage(true));
-$("#btnCropSkip").addEventListener("click", ()=> saveCroppedPage(false));
+  function buildUserContentForChain(userMsg){
+    if(userMsg.files && userMsg.files.some(f=>f.kind==="image")){
+      const parts = [];
+      if(userMsg.content) parts.push({ type:"text", text: userMsg.content });
+      for(const f of userMsg.files){
+        if(f.kind === "image") parts.push({ type:"image_url", image_url:{ url: f.content } });
+      }
+      return parts;
+    }
+    return userMsg.content;
+  }
 
-/* ============ INIT ============ */
-async function init(){
-  await openDB();
-  await loadLibrary();
-  if("serviceWorker" in navigator){
-    navigator.serviceWorker.register("sw.js").catch(()=>{});
+  async function runChainSend(conv, userMsg){
+    const asstMsg = { id: "m_" + Date.now() + "_a", role: "assistant", content: "", chain: [] };
+    conv.messages.push(asstMsg);
+    const { contentEl, stagesEl } = appendChainMessageDOM(asstMsg);
+    scrollToBottom();
+
+    const baseUserContent = buildUserContentForChain(userMsg);
+    let previousText = "";
+
+    for(let i = 0; i < state.chainModels.length; i++){
+      const model = state.chainModels[i];
+      const stage = { model, content: "", status: "running" };
+      asstMsg.chain.push(stage);
+      const stageBodyEl = appendChainStageDOM(stagesEl, stage, i);
+      scrollToBottom();
+
+      const stageMessages = [];
+      if(state.sysPrompt && state.sysPrompt.trim()){
+        stageMessages.push({ role:"system", content: state.sysPrompt.trim() });
+      }
+      if(i > 0){
+        stageMessages.push({ role:"system", content: CHAIN_REVIEW_INSTRUCTION });
+      }
+      stageMessages.push({ role:"user", content: baseUserContent });
+      if(i > 0){
+        stageMessages.push({ role:"assistant", content: previousText });
+        stageMessages.push({ role:"user", content: "Yukarıdaki yanıtı incele ve iyileştirilmiş nihai yanıtını üret." });
+      }
+
+      try{
+        const full = await streamChatCompletion(model, stageMessages, (partial)=>{
+          stage.content = partial;
+          renderMarkdownInto(stageBodyEl, partial);
+          scrollToBottom();
+        }, abortController.signal);
+
+        stage.content = full || "_(boş yanıt geldi)_";
+        stage.status = "done";
+        renderMarkdownInto(stageBodyEl, stage.content);
+        previousText = stage.content;
+        asstMsg.content = stage.content; // final stage's content is the running "answer"
+        renderMarkdownInto(contentEl, asstMsg.content);
+        scrollToBottom();
+      }catch(err){
+        if(err.name === "AbortError"){
+          stage.status = "stopped";
+          stage.content += "\n\n_[durduruldu]_";
+          renderMarkdownInto(stageBodyEl, stage.content);
+          asstMsg.content = previousText || "_[zincir durduruldu]_";
+          renderMarkdownInto(contentEl, asstMsg.content);
+          break;
+        } else {
+          console.error(err);
+          stage.status = "error";
+          stage.content = "_Hata: " + escapeHtml(friendlyNetworkError(err)) + "_";
+          renderMarkdownInto(stageBodyEl, stage.content);
+          showError(`Zincirde "${model}" adımında hata oluştu: ${friendlyNetworkError(err)}`);
+          if(previousText){
+            asstMsg.content = previousText;
+            renderMarkdownInto(contentEl, asstMsg.content);
+          } else {
+            conv.messages.pop();
+            renderMessages();
+          }
+          break;
+        }
+      }
+    }
+
+    if(!asstMsg.content){
+      conv.messages.pop();
+      renderMessages();
+    }
   }
-  if(screen.orientation && screen.orientation.lock){
-    screen.orientation.lock("portrait").catch(()=>{}); // no-op on iOS Safari; CSS rotate-gate covers it
+
+  function setSendButtonState(streaming){
+    if(streaming){
+      sendBtn.classList.add("stop");
+      sendBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 14 14"><rect x="2" y="2" width="10" height="10" rx="1.5" fill="currentColor"/></svg>`;
+      sendBtn.disabled = false;
+    } else {
+      sendBtn.classList.remove("stop");
+      sendBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 13V3M8 3L3.5 7.5M8 3L12.5 7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    }
   }
-}
-init();
+
+  // ---------------- File attachment ----------------
+  const TEXT_EXT = /\.(txt|md|csv|json|js|ts|jsx|tsx|py|java|c|cpp|h|hpp|cs|go|rs|rb|php|html|css|scss|xml|yaml|yml|sql|sh|bat|ini|toml|log|gcode|nc|tap)$/i;
+  const IMAGE_TYPES = /^image\/(png|jpe?g|webp|gif)$/i;
+  const MAX_TEXT_BYTES = 300 * 1024;
+
+  attachBtn.addEventListener("click", ()=> fileInput.click());
+  fileInput.addEventListener("change", (e)=>{
+    handleFiles(e.target.files);
+    fileInput.value = "";
+  });
+
+  function handleFiles(fileList){
+    for(const file of fileList){
+      if(IMAGE_TYPES.test(file.type)){
+        const reader = new FileReader();
+        reader.onload = ()=>{
+          pendingFiles.push({ name: file.name, kind: "image", content: reader.result });
+          renderAttachedChips();
+        };
+        reader.readAsDataURL(file);
+      } else if(TEXT_EXT.test(file.name) || file.type.startsWith("text/") || file.type === "application/json"){
+        if(file.size > MAX_TEXT_BYTES){
+          showError(`"${file.name}" çok büyük (${Math.round(file.size/1024)}KB). 300KB altı metin dosyaları desteklenir.`);
+          continue;
+        }
+        const reader = new FileReader();
+        reader.onload = ()=>{
+          pendingFiles.push({ name: file.name, kind: "text", content: reader.result });
+          renderAttachedChips();
+        };
+        reader.readAsText(file);
+      } else {
+        showError(`"${file.name}" desteklenmeyen bir dosya türü. Metin/kod dosyaları veya görsel (png/jpg/webp) ekleyebilirsin.`);
+      }
+    }
+  }
+
+  function renderAttachedChips(){
+    attachedFilesEl.innerHTML = "";
+    pendingFiles.forEach((f, idx)=>{
+      const chip = document.createElement("div");
+      chip.className = "attach-chip";
+      chip.innerHTML = `<span>${(f.kind==="image"?"🖼":"📄")} ${escapeHtml(f.name)}</span>`;
+      const rm = document.createElement("button");
+      rm.textContent = "✕";
+      rm.addEventListener("click", ()=>{
+        pendingFiles.splice(idx, 1);
+        renderAttachedChips();
+      });
+      chip.appendChild(rm);
+      attachedFilesEl.appendChild(chip);
+    });
+  }
+
+  function escapeHtml(s){
+    return s.replace(/[&<>"']/g, (c)=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+  }
+
+  // drag & drop
+  ["dragenter","dragover"].forEach(evt=>{
+    window.addEventListener(evt, (e)=>{ e.preventDefault(); dropOverlay.classList.add("active"); });
+  });
+  ["dragleave","drop"].forEach(evt=>{
+    window.addEventListener(evt, (e)=>{
+      if(evt === "drop"){
+        e.preventDefault();
+        if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length){
+          handleFiles(e.dataTransfer.files);
+        }
+      }
+      dropOverlay.classList.remove("active");
+    });
+  });
+
+  // ---------------- Sidebar toggle ----------------
+  function isMobile(){ return window.innerWidth <= 760; }
+  function openSidebarMobile(){ sidebar.classList.add("open"); sidebarScrim.classList.add("active"); }
+  function closeSidebarMobile(){ sidebar.classList.remove("open"); sidebarScrim.classList.remove("active"); }
+
+  $("menuToggle").addEventListener("click", ()=>{
+    if(isMobile()){
+      if(sidebar.classList.contains("open")) closeSidebarMobile();
+      else openSidebarMobile();
+    } else {
+      sidebar.classList.toggle("collapsed");
+    }
+  });
+  sidebarScrim.addEventListener("click", closeSidebarMobile);
+  $("newChatBtn").addEventListener("click", newConversation);
+  $("composeBtn").addEventListener("click", newConversation);
+  modelChip.addEventListener("click", openSettings);
+
+  // ---------------- Settings modal ----------------
+  const settingsOverlay = $("settingsOverlay");
+  function openSettings(){
+    $("apiKeyInput").value = state.apiKey;
+    $("apiUrlInput").value = state.apiUrl || DEFAULT_API_URL;
+    $("sysPromptInput").value = state.sysPrompt;
+    $("tempInput").value = state.temperature;
+    $("maxTokInput").value = state.maxTokens;
+    $("chainEnabledInput").checked = state.chainEnabled;
+    renderModelList();
+    settingsOverlay.classList.remove("hidden");
+  }
+  function closeSettings(){ settingsOverlay.classList.add("hidden"); }
+
+  $("settingsBtn").addEventListener("click", openSettings);
+  $("settingsBtnSide").addEventListener("click", openSettings);
+  $("closeSettingsBtn").addEventListener("click", closeSettings);
+
+  $("toggleKeyVis").addEventListener("click", ()=>{
+    const inp = $("apiKeyInput");
+    inp.type = inp.type === "password" ? "text" : "password";
+  });
+
+  function renderModelList(){
+    const list = $("modelList");
+    list.innerHTML = "";
+    for(const m of state.models){
+      const row = document.createElement("div");
+      row.className = "model-row" + (m === state.currentModel ? " active" : "");
+      row.innerHTML = `<span>${escapeHtml(m)}</span>`;
+      const useBtn = document.createElement("button");
+      useBtn.textContent = m === state.currentModel ? "✓" : "seç";
+      useBtn.style.fontFamily = "var(--mono)";
+      useBtn.style.fontSize = "11px";
+      useBtn.style.color = m === state.currentModel ? "var(--amber)" : "var(--text-dim)";
+      useBtn.addEventListener("click", ()=>{
+        state.currentModel = m;
+        persistModels();
+        renderModelList();
+      });
+      const delBtn = document.createElement("button");
+      delBtn.textContent = "✕";
+      delBtn.addEventListener("click", ()=>{
+        state.models = state.models.filter(x=>x!==m);
+        if(state.currentModel === m) state.currentModel = state.models[0] || "";
+        state.chainModels = state.chainModels.filter(x=>x!==m);
+        persistModels();
+        persistChain();
+        renderModelList();
+        renderChainUI();
+      });
+      row.appendChild(useBtn);
+      row.appendChild(delBtn);
+      list.appendChild(row);
+    }
+    renderChainUI();
+  }
+
+  // ---------------- Chain mode ----------------
+  function persistChain(){
+    localStorage.setItem(LS_CHAIN_ENABLED, state.chainEnabled ? "1" : "0");
+    saveJSON(LS_CHAIN_MODELS, state.chainModels);
+    updateTopTitle();
+  }
+
+  function renderChainUI(){
+    // populate the "add to chain" select with models not yet in the chain
+    const select = $("chainAddSelect");
+    const prevVal = select.value;
+    select.innerHTML = `<option value="">Zincire eklenecek model seç…</option>`;
+    for(const m of state.models){
+      if(state.chainModels.includes(m)) continue;
+      const opt = document.createElement("option");
+      opt.value = m;
+      opt.textContent = m;
+      select.appendChild(opt);
+    }
+    if([...select.options].some(o=>o.value===prevVal)) select.value = prevVal;
+
+    // render the ordered chain list
+    const list = $("chainList");
+    list.innerHTML = "";
+    state.chainModels.forEach((m, idx)=>{
+      const row = document.createElement("div");
+      row.className = "chain-list-row";
+
+      const badge = document.createElement("span");
+      badge.className = "chain-order-badge";
+      badge.textContent = idx + 1;
+
+      const name = document.createElement("span");
+      name.className = "chain-model-name";
+      name.textContent = m;
+
+      const upBtn = document.createElement("button");
+      upBtn.innerHTML = "↑";
+      upBtn.title = "Yukarı taşı";
+      upBtn.disabled = idx === 0;
+      upBtn.addEventListener("click", ()=>{
+        [state.chainModels[idx-1], state.chainModels[idx]] = [state.chainModels[idx], state.chainModels[idx-1]];
+        persistChain();
+        renderChainUI();
+      });
+
+      const downBtn = document.createElement("button");
+      downBtn.innerHTML = "↓";
+      downBtn.title = "Aşağı taşı";
+      downBtn.disabled = idx === state.chainModels.length - 1;
+      downBtn.addEventListener("click", ()=>{
+        [state.chainModels[idx+1], state.chainModels[idx]] = [state.chainModels[idx], state.chainModels[idx+1]];
+        persistChain();
+        renderChainUI();
+      });
+
+      const rmBtn = document.createElement("button");
+      rmBtn.className = "chain-remove";
+      rmBtn.innerHTML = "✕";
+      rmBtn.title = "Zincirden çıkar";
+      rmBtn.addEventListener("click", ()=>{
+        state.chainModels.splice(idx, 1);
+        persistChain();
+        renderChainUI();
+      });
+
+      row.appendChild(badge);
+      row.appendChild(name);
+      row.appendChild(upBtn);
+      row.appendChild(downBtn);
+      row.appendChild(rmBtn);
+      list.appendChild(row);
+    });
+
+    $("chainEmptyHint").style.display = state.chainModels.length ? "none" : "block";
+  }
+
+  $("chainAddBtn").addEventListener("click", ()=>{
+    const v = $("chainAddSelect").value;
+    if(!v) return;
+    if(!state.chainModels.includes(v)) state.chainModels.push(v);
+    persistChain();
+    renderChainUI();
+  });
+
+  $("chainEnabledInput").addEventListener("change", (e)=>{
+    state.chainEnabled = e.target.checked;
+    persistChain();
+  });
+
+  function persistModels(){
+    saveJSON(LS_MODELS, state.models);
+    localStorage.setItem(LS_CURMODEL, state.currentModel);
+    updateTopTitle();
+  }
+
+  function addModelFromInput(){
+    const v = $("modelInput").value.trim();
+    if(!v) return false;
+    if(!state.models.includes(v)) state.models.push(v);
+    state.currentModel = v;
+    $("modelInput").value = "";
+    persistModels();
+    renderModelList();
+    return true;
+  }
+
+  $("addModelBtn").addEventListener("click", addModelFromInput);
+  $("modelInput").addEventListener("keydown", (e)=>{
+    if(e.key === "Enter"){ e.preventDefault(); addModelFromInput(); }
+  });
+
+  $("saveSettingsBtn").addEventListener("click", ()=>{
+    // if the user typed a model ID but forgot to hit "Ekle", add it now
+    if($("modelInput").value.trim()){
+      addModelFromInput();
+    }
+
+    state.apiKey = $("apiKeyInput").value.trim();
+    state.apiUrl = $("apiUrlInput").value.trim() || DEFAULT_API_URL;
+    state.sysPrompt = $("sysPromptInput").value;
+    state.temperature = $("tempInput").value.trim() || "0.7";
+    state.maxTokens = $("maxTokInput").value.trim() || "2048";
+
+    localStorage.setItem(LS_KEY, state.apiKey);
+    localStorage.setItem(LS_APIURL, state.apiUrl);
+    persistModels();
+    persistChain();
+    localStorage.setItem(LS_SYSPROMPT, state.sysPrompt);
+    localStorage.setItem(LS_TEMP, state.temperature);
+    localStorage.setItem(LS_MAXTOK, state.maxTokens);
+
+    if(!state.apiKey){
+      showError("API key boş görünüyor — girip tekrar kaydet.");
+      return;
+    }
+    const chainActive = state.chainEnabled && state.chainModels.length >= 2;
+    if(!chainActive && !state.currentModel){
+      showError("Model ID eklenmedi — kutuya yazıp Ekle'ye bas, sonra Kaydet.");
+      return;
+    }
+    if(state.chainEnabled && state.chainModels.length < 2){
+      showError("Zincir modu açık ama zincirde en az 2 model olmalı — listeye model ekle.");
+      return;
+    }
+    hideError();
+    updateTopTitle();
+    closeSettings();
+    renderMessages();
+  });
+
+  // ---------------- Boot ----------------
+  renderSidebar();
+  renderMessages();
+  updateTopTitle();
+  if(!state.apiKey){
+    setTimeout(openSettings, 300);
+  }
+
+  // first-ever visit: briefly show the conversations panel so it's discoverable
+  const INTRO_FLAG = "nvterm_intro_seen";
+  if(!localStorage.getItem(INTRO_FLAG)){
+    localStorage.setItem(INTRO_FLAG, "1");
+    setTimeout(()=>{
+      if(isMobile()){
+        openSidebarMobile();
+        setTimeout(closeSidebarMobile, 2200);
+      } else {
+        sidebar.classList.remove("collapsed");
+      }
+    }, state.apiKey ? 400 : 1400);
+  }
 
 })();
 </script>
