@@ -1217,7 +1217,13 @@
   textInput.addEventListener("keydown", (e)=>{
     if(e.key === "Enter" && !e.shiftKey){
       e.preventDefault();
-      handleSend();
+      handleSend().catch((err)=>{
+        console.error("handleSend crashed:", err);
+        isStreaming = false;
+        setSendButtonState(false);
+        abortController = null;
+        showError("Beklenmeyen bir hata oluştu: " + (err && err.message ? err.message : String(err)));
+      });
     }
   });
 
@@ -1226,7 +1232,25 @@
       if(abortController) abortController.abort();
       return;
     }
-    handleSend();
+    handleSend().catch((err)=>{
+      console.error("handleSend crashed:", err);
+      isStreaming = false;
+      setSendButtonState(false);
+      abortController = null;
+      showError("Beklenmeyen bir hata oluştu: " + (err && err.message ? err.message : String(err)));
+    });
+  });
+
+  // absolute last resort: if anything anywhere throws while we're mid-send,
+  // never leave the button stuck in the "stop" state
+  window.addEventListener("unhandledrejection", (e)=>{
+    if(isStreaming){
+      console.error("Unhandled rejection during send:", e.reason);
+      isStreaming = false;
+      setSendButtonState(false);
+      abortController = null;
+      showError("Beklenmeyen bir hata oluştu, istek durduruldu. Tekrar dener misin?");
+    }
   });
 
   // ---------------- Streaming helper (single call to the API) ----------------
@@ -1405,10 +1429,16 @@
     setSendButtonState(true);
     abortController = new AbortController();
 
-    if(chainActive){
-      await runChainSend(conv, userMsg);
-    } else {
-      await runSingleSend(conv);
+    try{
+      if(chainActive){
+        await runChainSend(conv, userMsg);
+      } else {
+        await runSingleSend(conv);
+      }
+    }catch(err){
+      // last-resort safety net: whatever went wrong, never leave the button stuck
+      console.error("Beklenmeyen hata:", err);
+      showError("Beklenmeyen bir hata oluştu: " + (err && err.message ? err.message : String(err)));
     }
 
     isStreaming = false;
