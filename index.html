@@ -1449,6 +1449,28 @@
     renderSidebar();
   }
 
+  function buildApiMessages(conv){
+    const msgs = [];
+    if(state.sysPrompt && state.sysPrompt.trim()){
+      msgs.push({ role: "system", content: state.sysPrompt.trim() });
+    }
+    for(const m of conv.messages){
+      if(m.role === "user" && m.files && m.files.some(f=>f.kind==="image")){
+        const parts = [];
+        if(m.content) parts.push({ type: "text", text: m.content });
+        for(const f of m.files){
+          if(f.kind === "image"){
+            parts.push({ type: "image_url", image_url: { url: f.content } });
+          }
+        }
+        msgs.push({ role: "user", content: parts });
+      } else {
+        msgs.push({ role: m.role, content: m.content });
+      }
+    }
+    return msgs;
+  }
+
   async function runSingleSend(conv){
     const asstMsg = { id: "m_" + Date.now() + "_a", role: "assistant", content: "" };
     conv.messages.push(asstMsg);
