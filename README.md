@@ -65,6 +65,59 @@ Birden fazla model ekleyip Ayarlar'dan aralarında geçiş yapabilirsin.
 - **Çoklu sohbet** — sol panelde geçmiş sohbetler, yeniden adlandırma, silme
 - **Sistem talimatı / temperature / max tokens** — Ayarlar'dan ayarlanabilir
 - Her şey `localStorage`'da tutulur — sunucu, veritabanı, hesap yok
+- **Cihazlar arası senkronizasyon** (opsiyonel) — Deno Deploy proxy'n üzerinden sohbetlerini iPhone + laptop arasında paylaşabilirsin, aşağıya bak
+
+## Cihazlar arası senkronizasyon (iPhone + laptop)
+
+Bir sohbete iPhone'da başlayıp laptop'ta devam etmek istiyorsan:
+
+1. `deno-deploy-proxy.js` dosyasının **en güncel halini** Deno Deploy projene yapıştır (NVIDIA proxy'sinin yanına artık `/sync/get` ve `/sync/set` uçları da eklendi). Deploy'a bas — proxy adresin **değişmez**.
+2. Uygulamada Ayarlar → **"Cihazlar arası senkronizasyon"** bölümünü aç:
+   - **Sunucu adresi**: Deno Deploy proxy'nin kök adresi (örn. `https://exact-minnow-4410.koruker.deno.net` — sonuna `/v1/...` ekleme).
+   - **Senkronizasyon ID**: "Rastgele oluştur"a bas, çıkan kodu not al (ya da aşağıdaki Google girişini kullan, otomatik doldurur).
+   - Açma anahtarını aç, Kaydet.
+3. **Diğer cihazda** (örn. laptop) da uygulamayı aç, Ayarlar'da aynı bölüme gir, **aynı Sunucu adresi + aynı Senkronizasyon ID'sini** birebir gir, açma anahtarını aç, Kaydet.
+4. Artık her sohbet değişikliği birkaç saniye içinde otomatik olarak diğer cihaza yansır. Uygulamayı her açtığında da otomatik kontrol eder. "Şimdi senkronize et" ile de anlık zorlayabilirsin.
+
+**Önemli:**
+- Senkronizasyon ID'si aynı zamanda tek koruman — kimseyle paylaşma, rastgele oluşturulan uzun kodu kullan.
+- Birleştirme mantığı basit "son güncellenen kazanır" şeklinde çalışır (sohbet bazında). Aynı sohbeti iki cihazda **aynı anda** düzenlemezsen sorunsuz çalışır; nadir bir çakışma senaryosunda en son kaydedilen taraf kazanır.
+- Bir cihazda sildiğin bir sohbet, senkronize olmadan önce diğer cihaz hâlâ eski kopyayı gönderirse geri gelebilir — bu basit senkronizasyon modelinin bilinen bir sınırıdır, iki cihazlı kişisel kullanım için pratikte sorun çıkarmaz.
+
+### Google ile giriş (Senkronizasyon ID'sini elle kopyalamamak için)
+
+Senkronizasyon ID'sini iki cihaza da elle yazmak yerine, aynı Google hesabıyla
+giriş yaparsan otomatik aynı ID türetilir.
+
+**Google Cloud Console'da tek seferlik kurulum:**
+1. [console.cloud.google.com](https://console.cloud.google.com) → yeni proje oluştur.
+2. **APIs & Services → OAuth consent screen** → "External" seç, uygulama adı ve
+   e-postanı gir, kaydet. Kendi hesabını test kullanıcısı olarak ekle.
+3. **APIs & Services → Credentials → Create Credentials → OAuth client ID** →
+   Uygulama türü: **Web application**.
+4. **Authorized JavaScript origins** kısmına GitHub Pages adresini ekle
+   (örn. `https://koruker.github.io` — path olmadan, tam origin).
+5. Oluşan **Client ID**'yi (`xxxxx.apps.googleusercontent.com`) kopyala.
+
+**Uygulamada:**
+1. Ayarlar → "Google ile giriş" → Client ID'yi yapıştır.
+2. Çıkan Google butonuna dokunup giriş yap. Senkronizasyon ID'si otomatik
+   dolar ve senkronizasyon açılır.
+3. **Diğer cihazda** aynı Client ID'yi gir, aynı Google hesabıyla giriş yap —
+   otomatik olarak aynı Senkronizasyon ID'sine sahip olursunuz.
+
+**Bilinmesi gerekenler:**
+- Bu, verilerini Google'a göndermez — Google Sign-In sadece kimliğini
+  doğrulayıp cihazlar arasında aynı kodu türetmek için kullanılır. Sohbetlerin
+  hâlâ sadece senin Deno Deploy sunucunda tutuluyor.
+- Güvenlik modeli, elle girilen Senkronizasyon ID'siyle aynıdır: kod
+  (bu durumda Google hesabından türetilen kod) kimin elindeyse o erişebilir.
+  Sunucu tarafında Google token'ı doğrulanmıyor — bu sadece ID'yi elle
+  kopyalamaktan kurtarmak için bir kolaylık katmanı.
+- iPhone'da Safari'nin gizlilik korumaları (ITP) yüzünden "sessiz otomatik
+  giriş" (sayfayı her açtığında kendiliğinden oturum açması) bazen
+  çalışmayabilir — bu durumda Ayarlar'ı açıp Google butonuna elle bir kez
+  daha dokunman yeterli.
 
 ## CORS hakkında önemli not
 

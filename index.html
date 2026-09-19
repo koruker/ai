@@ -15,6 +15,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/base16/tomorrow-night.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.1/marked.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer onload="window.__gsiLoaded && window.__gsiLoaded()"></script>
 
 <style>
   :root{
@@ -780,6 +781,9 @@
         <button class="btn" id="addModelBtn" style="flex:0 0 auto; padding:9px 12px;">Ekle</button>
       </div>
       <div class="hint">Tam model ID'sini modelin build.nvidia.com sayfasındaki API sekmesinden kopyala.</div>
+      <div class="hint" id="modelEditingHint" style="display:none; color:var(--amber);">
+        Düzenleniyor — kaydetmek için "Güncelle"ye bas. <a href="#" id="modelEditCancel" style="color:var(--teal-bright);">Vazgeç</a>
+      </div>
       <div class="hint" id="modelInputWarn" style="display:none; color:#E39490;"></div>
       <div class="model-list" id="modelList"></div>
     </div>
@@ -806,6 +810,63 @@
       </div>
       <div class="model-list" id="chainList"></div>
       <div class="hint" id="chainEmptyHint">Henüz zincire model eklenmedi.</div>
+    </div>
+
+    <div class="field chain-field">
+      <label style="margin-bottom:8px; display:block;">Google ile giriş</label>
+      <div class="hint" style="margin-top:-4px; margin-bottom:10px;">
+        Aynı Google hesabıyla iki cihazda da giriş yaparsan, aşağıdaki
+        Senkronizasyon ID'sini elle kopyalamana gerek kalmaz — otomatik
+        aynı olur. Verilerin Google'a gitmez, sadece kimlik doğrulama için
+        kullanılır.
+      </div>
+
+      <div class="field" id="googleClientIdField" style="margin-bottom:10px;">
+        <label for="googleClientIdInput">Google Client ID</label>
+        <input type="text" id="googleClientIdInput" placeholder="xxxxx.apps.googleusercontent.com">
+        <div class="hint">Google Cloud Console'dan bir kereye mahsus alınır (nasıl alınacağını sorarsan anlatırım).</div>
+      </div>
+
+      <div id="googleSignedOutBox">
+        <div id="gsiButton"></div>
+      </div>
+      <div id="googleSignedInBox" style="display:none;">
+        <div class="hint" id="googleAccountHint" style="color:var(--teal-bright);"></div>
+        <button class="btn" id="googleSignOutBtn" style="width:100%; margin-top:8px;">Çıkış yap</button>
+      </div>
+    </div>
+
+    <div class="field chain-field">
+      <label style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+        <span>Cihazlar arası senkronizasyon</span>
+        <span class="toggle-switch">
+          <input type="checkbox" id="syncEnabledInput">
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        </span>
+      </label>
+      <div class="hint" style="margin-top:-4px; margin-bottom:10px;">
+        Açıksa sohbetlerin, aynı Senkronizasyon ID'sini girdiğin diğer
+        cihazlarla (örn. iPhone + laptop) otomatik paylaşılır. NVIDIA proxy'n
+        için kullandığın Deno Deploy sunucusunu bunun için de kullanır.
+      </div>
+
+      <div class="field" style="margin-bottom:10px;">
+        <label for="syncUrlInput">Sunucu adresi</label>
+        <input type="text" id="syncUrlInput" placeholder="https://exact-minnow-4410.koruker.deno.net">
+        <div class="hint">Deno Deploy proxy adresin — sonuna /v1/... ekleme, sadece kök adres.</div>
+      </div>
+
+      <div class="field" style="margin-bottom:4px;">
+        <label for="syncIdInput">Senkronizasyon ID</label>
+        <div class="row">
+          <input type="text" id="syncIdInput" placeholder="ör. a3f9-k2m1-xyz7">
+          <button class="btn" id="syncGenerateBtn" style="flex:0 0 auto; padding:9px 12px;">Rastgele oluştur</button>
+        </div>
+        <div class="hint">Google ile giriş yaptıysan otomatik doldurulur. Elle de girebilirsin — diğer cihaza aynen gir.</div>
+      </div>
+
+      <button class="btn" id="syncNowBtn" style="width:100%; margin-top:6px;">Şimdi senkronize et</button>
+      <div class="hint" id="syncStatusHint" style="margin-top:6px;"></div>
     </div>
 
     <div class="field">
@@ -866,6 +927,12 @@
   const LS_APIURL = "nvterm_apiurl";
   const LS_CHAIN_ENABLED = "nvterm_chain_enabled";
   const LS_CHAIN_MODELS = "nvterm_chain_models";
+  const LS_SYNC_ENABLED = "nvterm_sync_enabled";
+  const LS_SYNC_URL = "nvterm_sync_url";
+  const LS_SYNC_ID = "nvterm_sync_id";
+  const LS_GOOGLE_CLIENT_ID = "nvterm_google_client_id";
+  const LS_GOOGLE_EMAIL = "nvterm_google_email";
+  const LS_GOOGLE_NAME = "nvterm_google_name";
 
   function loadJSON(key, fallback){
     try{
@@ -887,6 +954,12 @@
     activeId: localStorage.getItem(LS_ACTIVE) || null,
     chainEnabled: localStorage.getItem(LS_CHAIN_ENABLED) === "1",
     chainModels: loadJSON(LS_CHAIN_MODELS, []), // ordered array of model ids, weakest -> strongest
+    syncEnabled: localStorage.getItem(LS_SYNC_ENABLED) === "1",
+    syncUrl: localStorage.getItem(LS_SYNC_URL) || "",
+    syncId: localStorage.getItem(LS_SYNC_ID) || "",
+    googleClientId: localStorage.getItem(LS_GOOGLE_CLIENT_ID) || "",
+    googleEmail: localStorage.getItem(LS_GOOGLE_EMAIL) || "",
+    googleName: localStorage.getItem(LS_GOOGLE_NAME) || "",
   };
 
   let isStreaming = false;
@@ -924,9 +997,181 @@
   function persistConvs(){
     saveJSON(LS_CONVS, state.conversations);
     localStorage.setItem(LS_ACTIVE, state.activeId);
+    scheduleSyncPush();
   }
 
   function currentConv(){ return state.conversations[state.activeId]; }
+
+  // ---------------- Cross-device sync ----------------
+  let syncPushTimer = null;
+  function scheduleSyncPush(){
+    if(!state.syncEnabled || !state.syncUrl || !state.syncId) return;
+    if(syncPushTimer) clearTimeout(syncPushTimer);
+    syncPushTimer = setTimeout(syncPushNow, 2000);
+  }
+
+  async function syncPushNow(){
+    if(!state.syncEnabled || !state.syncUrl || !state.syncId) return;
+    try{
+      const payload = { conversations: state.conversations, activeId: state.activeId, updated: Date.now() };
+      await fetch(`${state.syncUrl.replace(/\/$/, "")}/sync/set?id=${encodeURIComponent(state.syncId)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      setSyncStatus("Son senkronizasyon: az önce (gönderildi)");
+    }catch(err){
+      console.error("Sync push failed:", err);
+      setSyncStatus("Senkronizasyon gönderilemedi: " + (err.message || err));
+    }
+  }
+
+  function mergeConversations(remote){
+    if(!remote || !remote.conversations) return false;
+    let changed = false;
+    for(const id in remote.conversations){
+      const remoteConv = remote.conversations[id];
+      const localConv = state.conversations[id];
+      if(!localConv || (remoteConv.updated || 0) > (localConv.updated || 0)){
+        state.conversations[id] = remoteConv;
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
+  async function syncPullNow(showFeedback){
+    if(!state.syncEnabled || !state.syncUrl || !state.syncId) return false;
+    try{
+      const resp = await fetch(`${state.syncUrl.replace(/\/$/, "")}/sync/get?id=${encodeURIComponent(state.syncId)}`);
+      if(!resp.ok) throw new Error("HTTP " + resp.status);
+      const { data } = await resp.json();
+      const changed = mergeConversations(data);
+      if(changed){
+        saveJSON(LS_CONVS, state.conversations);
+        renderSidebar();
+        renderMessages();
+      }
+      if(showFeedback) setSyncStatus(changed ? "Diğer cihazdan yeni sohbetler alındı." : "Zaten güncel.");
+      return changed;
+    }catch(err){
+      console.error("Sync pull failed:", err);
+      if(showFeedback) setSyncStatus("Senkronizasyon alınamadı: " + (err.message || err));
+      return false;
+    }
+  }
+
+  function setSyncStatus(text){
+    const el = document.getElementById("syncStatusHint");
+    if(el) el.textContent = text;
+  }
+
+  // ---------------- Google Sign-In (identity anchor for sync) ----------------
+  let googleInitDone = false;
+
+  function decodeJwtPayload(token){
+    try{
+      const base64Url = token.split(".")[1];
+      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+      const jsonStr = decodeURIComponent(
+        atob(base64).split("").map(c => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2)).join("")
+      );
+      return JSON.parse(jsonStr);
+    }catch(e){ return null; }
+  }
+
+  function updateGoogleSignInUI(){
+    const signedIn = !!state.googleEmail;
+    const outBox = document.getElementById("googleSignedOutBox");
+    const inBox = document.getElementById("googleSignedInBox");
+    if(!outBox || !inBox) return;
+    outBox.style.display = signedIn ? "none" : "block";
+    inBox.style.display = signedIn ? "block" : "none";
+    if(signedIn){
+      document.getElementById("googleAccountHint").textContent =
+        `Giriş yapıldı: ${state.googleName ? state.googleName + " — " : ""}${state.googleEmail}`;
+    }
+  }
+
+  function handleGoogleCredential(response){
+    const payload = decodeJwtPayload(response.credential);
+    if(!payload || !payload.sub){
+      setSyncStatus("Google girişi ayrıştırılamadı, tekrar dener misin?");
+      return;
+    }
+    state.googleEmail = payload.email || "";
+    state.googleName = payload.name || "";
+    state.syncId = "g_" + payload.sub;
+    state.syncEnabled = true;
+
+    localStorage.setItem(LS_GOOGLE_EMAIL, state.googleEmail);
+    localStorage.setItem(LS_GOOGLE_NAME, state.googleName);
+    localStorage.setItem(LS_SYNC_ID, state.syncId);
+    localStorage.setItem(LS_SYNC_ENABLED, "1");
+
+    updateGoogleSignInUI();
+    const idInput = document.getElementById("syncIdInput");
+    const enInput = document.getElementById("syncEnabledInput");
+    if(idInput) idInput.value = state.syncId;
+    if(enInput) enInput.checked = true;
+
+    setSyncStatus(`Google ile giriş yapıldı (${state.googleEmail}), senkronize ediliyor…`);
+    syncPullNow(false).then(()=> syncPushNow()).then(()=> setSyncStatus("Senkronize edildi."));
+  }
+  window.handleGoogleCredential = handleGoogleCredential;
+
+  function ensureGoogleInit(){
+    if(googleInitDone) return;
+    if(!state.googleClientId) return;
+    if(typeof google === "undefined" || !google.accounts || !google.accounts.id) return;
+    try{
+      google.accounts.id.initialize({
+        client_id: state.googleClientId,
+        callback: handleGoogleCredential,
+        auto_select: true,
+      });
+      googleInitDone = true;
+      // best-effort silent sign-in on devices that already consented;
+      // Safari/iOS may block this due to ITP, manual button remains as fallback
+      if(!state.googleEmail){
+        try{ google.accounts.id.prompt(); }catch(e){}
+      }
+    }catch(e){
+      console.error("Google Sign-In init failed:", e);
+    }
+  }
+
+  function renderGoogleButton(){
+    ensureGoogleInit();
+    if(!googleInitDone) return;
+    const btnEl = document.getElementById("gsiButton");
+    if(!btnEl) return;
+    btnEl.innerHTML = "";
+    try{
+      google.accounts.id.renderButton(btnEl, { theme: "outline", size: "large", width: 280 });
+    }catch(e){ console.error("Google button render failed:", e); }
+  }
+
+  window.__gsiLoaded = function(){ ensureGoogleInit(); };
+
+  document.getElementById("googleClientIdInput").addEventListener("change", ()=>{
+    state.googleClientId = document.getElementById("googleClientIdInput").value.trim();
+    localStorage.setItem(LS_GOOGLE_CLIENT_ID, state.googleClientId);
+    googleInitDone = false;
+    renderGoogleButton();
+  });
+
+  document.getElementById("googleSignOutBtn").addEventListener("click", ()=>{
+    if(typeof google !== "undefined" && google.accounts && google.accounts.id){
+      try{ google.accounts.id.disableAutoSelect(); }catch(e){}
+    }
+    state.googleEmail = "";
+    state.googleName = "";
+    localStorage.removeItem(LS_GOOGLE_EMAIL);
+    localStorage.removeItem(LS_GOOGLE_NAME);
+    updateGoogleSignInUI();
+    setSyncStatus("Google hesabından çıkış yapıldı. Senkronizasyon ID'si elle girilene kadar kalır.");
+  });
 
   // ---------------- Sidebar rendering ----------------
   function dateGroupLabel(ts){
@@ -1709,13 +1954,47 @@
     $("tempInput").value = state.temperature;
     $("maxTokInput").value = state.maxTokens;
     $("chainEnabledInput").checked = state.chainEnabled;
+    $("syncEnabledInput").checked = state.syncEnabled;
+    $("syncUrlInput").value = state.syncUrl;
+    $("syncIdInput").value = state.syncId;
+    $("googleClientIdInput").value = state.googleClientId;
+    setSyncStatus("");
     $("modelInputWarn").style.display = "none";
     $("extractResults").style.display = "none";
     $("pasteExtractInput").value = "";
+    editingModelOriginal = null;
+    $("modelEditingHint").style.display = "none";
+    $("addModelBtn").textContent = "Ekle";
     renderModelList();
+    updateGoogleSignInUI();
+    renderGoogleButton();
     settingsOverlay.classList.remove("hidden");
   }
   function closeSettings(){ settingsOverlay.classList.add("hidden"); }
+
+  $("syncGenerateBtn").addEventListener("click", ()=>{
+    const rnd = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2);
+    $("syncIdInput").value = rnd.replace(/-/g, "").slice(0, 16);
+  });
+
+  $("syncNowBtn").addEventListener("click", async ()=>{
+    state.syncUrl = $("syncUrlInput").value.trim();
+    state.syncId = $("syncIdInput").value.trim();
+    state.syncEnabled = $("syncEnabledInput").checked;
+    if(!state.syncUrl || !state.syncId){
+      setSyncStatus("Önce sunucu adresi ve senkronizasyon ID'si gir.");
+      return;
+    }
+    localStorage.setItem(LS_SYNC_URL, state.syncUrl);
+    localStorage.setItem(LS_SYNC_ID, state.syncId);
+    localStorage.setItem(LS_SYNC_ENABLED, state.syncEnabled ? "1" : "0");
+    setSyncStatus("Senkronize ediliyor…");
+    await syncPullNow(false);
+    await syncPushNow();
+    setSyncStatus("Senkronize edildi.");
+    renderSidebar();
+    renderMessages();
+  });
 
   $("settingsBtn").addEventListener("click", openSettings);
   $("settingsBtnSide").addEventListener("click", openSettings);
@@ -1743,23 +2022,47 @@
         persistModels();
         renderModelList();
       });
+      const editBtn = document.createElement("button");
+      editBtn.textContent = "✎";
+      editBtn.title = "Düzenle";
+      editBtn.addEventListener("click", ()=>{
+        editingModelOriginal = m;
+        $("modelInput").value = m;
+        $("modelInput").focus();
+        $("addModelBtn").textContent = "Güncelle";
+        $("modelEditingHint").style.display = "block";
+      });
       const delBtn = document.createElement("button");
       delBtn.textContent = "✕";
       delBtn.addEventListener("click", ()=>{
         state.models = state.models.filter(x=>x!==m);
         if(state.currentModel === m) state.currentModel = state.models[0] || "";
         state.chainModels = state.chainModels.filter(x=>x!==m);
+        if(editingModelOriginal === m) cancelModelEdit();
         persistModels();
         persistChain();
         renderModelList();
         renderChainUI();
       });
       row.appendChild(useBtn);
+      row.appendChild(editBtn);
       row.appendChild(delBtn);
       list.appendChild(row);
     }
     renderChainUI();
   }
+
+  let editingModelOriginal = null;
+  function cancelModelEdit(){
+    editingModelOriginal = null;
+    $("modelInput").value = "";
+    $("addModelBtn").textContent = "Ekle";
+    $("modelEditingHint").style.display = "none";
+  }
+  $("modelEditCancel").addEventListener("click", (e)=>{
+    e.preventDefault();
+    cancelModelEdit();
+  });
 
   // ---------------- Chain mode ----------------
   function persistChain(){
@@ -1968,9 +2271,21 @@
     } else {
       warnEl.style.display = "none";
     }
-    if(!state.models.includes(v)) state.models.push(v);
-    state.currentModel = v;
-    $("modelInput").value = "";
+
+    if(editingModelOriginal){
+      const idx = state.models.indexOf(editingModelOriginal);
+      if(idx !== -1) state.models[idx] = v;
+      else if(!state.models.includes(v)) state.models.push(v);
+      if(state.currentModel === editingModelOriginal) state.currentModel = v;
+      state.chainModels = state.chainModels.map(x => x === editingModelOriginal ? v : x);
+      persistChain();
+      cancelModelEdit();
+    } else {
+      if(!state.models.includes(v)) state.models.push(v);
+      state.currentModel = v;
+      $("modelInput").value = "";
+    }
+
     persistModels();
     renderModelList();
     return true;
@@ -1992,6 +2307,9 @@
     state.sysPrompt = $("sysPromptInput").value;
     state.temperature = $("tempInput").value.trim() || "0.7";
     state.maxTokens = $("maxTokInput").value.trim() || "2048";
+    state.syncEnabled = $("syncEnabledInput").checked;
+    state.syncUrl = $("syncUrlInput").value.trim();
+    state.syncId = $("syncIdInput").value.trim();
 
     localStorage.setItem(LS_KEY, state.apiKey);
     localStorage.setItem(LS_APIURL, state.apiUrl);
@@ -2000,6 +2318,10 @@
     localStorage.setItem(LS_SYSPROMPT, state.sysPrompt);
     localStorage.setItem(LS_TEMP, state.temperature);
     localStorage.setItem(LS_MAXTOK, state.maxTokens);
+    localStorage.setItem(LS_SYNC_ENABLED, state.syncEnabled ? "1" : "0");
+    localStorage.setItem(LS_SYNC_URL, state.syncUrl);
+    localStorage.setItem(LS_SYNC_ID, state.syncId);
+    if(state.syncEnabled && state.syncUrl && state.syncId) scheduleSyncPush();
 
     if(!state.apiKey){
       showError("API key boş görünüyor — girip tekrar kaydet.");
@@ -2026,6 +2348,12 @@
   updateTopTitle();
   if(!state.apiKey){
     setTimeout(openSettings, 300);
+  }
+  if(state.syncEnabled && state.syncUrl && state.syncId){
+    syncPullNow(false);
+  }
+  if(state.googleClientId){
+    ensureGoogleInit(); // in case gsi/client already loaded before this ran
   }
 
   // first-ever visit: briefly show the conversations panel so it's discoverable
